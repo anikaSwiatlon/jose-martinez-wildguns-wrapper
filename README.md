@@ -2,7 +2,7 @@
 
 Hola, como estas?
 
-<img src="assets/jose-martinez-portrait.png)" alt="jose-portrait" width="300"/>
+<img src="assets/jose-martinez-portrait.png" alt="jose's portrait" width="300"/>
 
 My name is Jose Martinez and I am humble mexican farmer. But i know a guy who knows a guy who knows a guy who can help you manage your armed forces.
 
@@ -19,7 +19,7 @@ Extension currently works and wraps units correctly
 
 For the moment compatibility is confirmed only for the below version of Chrome browser.
 
-![alt text](image.png)
+<img src="assets/chrome-version.png" alt="chrome version" width="300"/>
 
 # Installation
 
