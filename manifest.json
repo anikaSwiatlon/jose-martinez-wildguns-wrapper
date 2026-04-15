@@ -1,7 +1,7 @@
 {
-  "manifest_version": 3,
+  "manifest_version": 1,
   "name": "Wildungs Unit Tracker",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "Reads city guard unit summaries from Wildungs and saves them to your database.",
 
   "permissions": [
