@@ -4,7 +4,7 @@ Hola, como estas?
 
 <img src="assets/jose-martinez-portrait.png" alt="jose's portrait" width="300"/>
 
-My name is Jose Martinez and I am humble mexican farmer. But i know a guy who knows a guy who knows a guy who can help you manage your armed forces.
+My name is Jose Martinez and I am a humble mexican farmer. However don't let that fool you. I am the type of person who knows a guy who knows a guy who knows a guy who can help you manage your armed forces. Shall we draft an arrangement for you to engage my services?
 
 # Functionality
 
@@ -15,7 +15,7 @@ to a Supabase table or download as json.
 
 Extension currently works and wraps units correctly
 
-# Compatibiity
+# Compatibility
 
 For the moment compatibility is confirmed only for the below version of Chrome browser.
 
@@ -23,4 +23,4 @@ For the moment compatibility is confirmed only for the below version of Chrome b
 
 # Installation
 
-Download deploy artfiact, unpack and load as extension in chrome developer mode
+Download deploy artifact, unpack and load as extension in chrome developer mode
