@@ -117,7 +117,7 @@ jobs:
           web-ext lint \
             --source-dir . \
             --ignore-files "*.sql" "README*" ".github/**" \
-            --ignore-errors BACKGROUND_SERVICE_WORKER_NOFALLBACK ADDON_ID_REQUIRED
+            --self-hosted
 
       # ── Validate JS files parse without syntax errors ────────────────────
       - name: Check JS syntax
