@@ -1,7 +1,8 @@
 # Introduction
 
 Hola, como estas?
-![jose-portrait](assets/jose-martinez-portrait.png)
+
+<img src="assets/jose-martinez-portrait.png)" alt="jose-portrait" width="300"/>
 
 My name is Jose Martinez and I am humble mexican farmer. But i know a guy who knows a guy who knows a guy who can help you manage your armed forces.
 
