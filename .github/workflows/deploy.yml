@@ -200,7 +200,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.version.outputs.name }}-v${{ steps.version.outputs.version }}
-          path: ${{ env.zip_name }}
+          path: ${{ env.zip_name}}
           retention-days: 90
           if-no-files-found: error
 
