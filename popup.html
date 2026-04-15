@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Wildungs Unit Tracker</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      width: 340px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 13px;
+      color: #1a1a1a;
+      background: #f9f8f6;
+    }
+
+    header {
+      padding: 12px 16px;
+      background: #fff;
+      border-bottom: 1px solid #e5e4e0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    header h1 { font-size: 14px; font-weight: 600; }
+
+    .dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #d1d0cc; flex-shrink: 0;
+      transition: background .3s;
+    }
+    .dot.ready   { background: #3ecf8e; }
+    .dot.error   { background: #e84e4e; }
+    .dot.loading { background: #f59e0b; animation: pulse .8s ease-in-out infinite alternate; }
+    @keyframes pulse { to { opacity: .4; } }
+
+    main { padding: 12px 16px; display: flex; flex-direction: column; gap: 10px; }
+
+    /* Preview */
+    #preview-card {
+      background: #fff;
+      border: 1px solid #e5e4e0;
+      border-radius: 8px;
+      max-height: 260px;
+      overflow-y: auto;
+      display: none;
+    }
+    #preview-card.visible { display: block; }
+
+    .player-block { padding: 8px 12px; border-bottom: 1px solid #f0f0ee; }
+    .player-block:last-child { border-bottom: none; }
+    .player-name {
+      font-weight: 600; font-size: 12px; color: #1a1a1a;
+      display: flex; justify-content: space-between; align-items: baseline;
+    }
+    .player-city { font-size: 11px; color: #888; font-weight: 400; }
+    .unit-list { margin-top: 5px; display: flex; flex-direction: column; gap: 2px; }
+    .unit-row {
+      display: flex; justify-content: space-between;
+      font-size: 12px; color: #444;
+    }
+    .unit-row .count { color: #888; font-variant-numeric: tabular-nums; }
+
+    /* Status */
+    #status { font-size: 12px; color: #666; min-height: 16px; text-align: center; }
+    #status.success { color: #1a7a4a; }
+    #status.error   { color: #b83232; }
+
+    /* Buttons */
+    .btn {
+      width: 100%; padding: 9px 14px; border-radius: 7px; border: none;
+      font-size: 13px; font-weight: 500; cursor: pointer;
+      transition: opacity .15s, background .15s;
+    }
+    .btn:disabled { opacity: .4; cursor: default; }
+    .btn-read     { background: #3ecf8e; color: #0a3d25; }
+    .btn-read:not(:disabled):hover { background: #33be80; }
+
+    .btn-row { display: flex; gap: 8px; }
+    .btn-dl   { flex: 1; background: #f0f0ee; color: #333; }
+    .btn-dl:not(:disabled):hover { background: #e5e4e0; }
+    .btn-send { flex: 1; background: #1a1a1a; color: #fff; }
+    .btn-send:not(:disabled):hover { background: #333; }
+
+    /* Settings */
+    details {
+      background: #fff; border: 1px solid #e5e4e0;
+      border-radius: 8px; overflow: hidden;
+    }
+    summary {
+      padding: 9px 12px; font-size: 12px; font-weight: 500; color: #555;
+      cursor: pointer; user-select: none; list-style: none;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    summary::after { content: "›"; font-size: 16px; color: #aaa; }
+    details[open] summary::after { content: "‹"; }
+    .settings-body { padding: 0 12px 12px; display: flex; flex-direction: column; gap: 8px; }
+    label { font-size: 11px; color: #777; display: block; margin-bottom: 2px; }
+    input[type="text"], input[type="password"] {
+      width: 100%; padding: 6px 8px; border: 1px solid #ddd;
+      border-radius: 5px; font-size: 12px;
+      font-family: "SF Mono", "Fira Code", monospace; background: #fafaf9;
+    }
+    input:focus { outline: none; border-color: #3ecf8e; }
+    .btn-save { background: #f0f0ee; color: #333; font-size: 12px; padding: 6px 10px; }
+    .btn-save:hover { background: #e5e4e0; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="dot" id="status-dot"></div>
+    <h1>Wildungs Unit Tracker</h1>
+  </header>
+
+  <main>
+    <div id="preview-card"></div>
+
+    <p id="status">Open the unit support panel, then click Read.</p>
+
+    <button class="btn btn-read" id="btn-read">Read units from page</button>
+
+    <div class="btn-row">
+      <button class="btn btn-dl"   id="btn-dl"   disabled>Download JSON</button>
+      <button class="btn btn-send" id="btn-send" disabled>Send to Supabase</button>
+    </div>
+
+    <details id="settings-panel">
+      <summary>Settings</summary>
+      <div class="settings-body">
+        <div>
+          <label>Supabase project URL</label>
+          <input id="cfg-url" type="text" placeholder="https://xxxx.supabase.co" />
+        </div>
+        <div>
+          <label>Anon / public key</label>
+          <input id="cfg-key" type="password" placeholder="eyJ..." />
+        </div>
+        <button class="btn btn-save" id="btn-save">Save settings</button>
+      </div>
+    </details>
+  </main>
+
+  <script src="popup.js"></script>
+</body>
+</html>
