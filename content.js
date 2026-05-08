@@ -94,10 +94,19 @@ function parseUnitsTable() {
       const input      = div.querySelector("input[id^='unit_']");
       const idParts    = input?.id?.match(/unit_(\d+)_(\d+)/);
       const unitTypeId = idParts ? parseInt(idParts[2], 10) : null;
+      const unitId     = input?.id ?? null;   // e.g. "unit_38594_21"
+
+      // <a name="5"> holds the max returnable count for this unit group
+      const linkAnchor = div.querySelector("a[id^='link_unit_']");
+      const maxCount   = linkAnchor
+        ? parseInt(linkAnchor.getAttribute("name") || "0", 10)
+        : count;
 
       currentPlayer.units.push({
         unit:         unitName,
+        unit_id:      unitId,
         count:        count,
+        max_count:    maxCount,
         unit_type_id: unitTypeId,
       });
     });

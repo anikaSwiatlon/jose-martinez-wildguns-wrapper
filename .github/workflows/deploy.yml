@@ -204,6 +204,18 @@ jobs:
           retention-days: 90
           if-no-files-found: error
 
+      # ── Publish GitHub Release (push to main only) ───────────────────────
+      - name: Create GitHub Release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="v${{ steps.version.outputs.version }}"
+          gh release create "$TAG" \
+            --title "Release $TAG" \
+            --notes "Automated release for version ${{ steps.version.outputs.version }}." \
+            "${{ env.zip_name }}"
+
       # ── Summary ─────────────────────────────────────────────────────────
       - name: Write job summary
         run: |

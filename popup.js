@@ -28,13 +28,13 @@ function renderPreview(data) {
     <div class="player-block">
       <div class="player-name">
         <span>${p.player}</span>
-        <span class="player-city">${p.city}</span>
+        <span class="player-city">${p.city} <span class="village-id">#${p.village_id}</span></span>
       </div>
       <div class="unit-list">
         ${p.units.map(u => `
           <div class="unit-row">
-            <span>${u.unit}</span>
-            <span class="count">${u.count.toLocaleString()}</span>
+            <span>${u.unit} <span class="unit-id">${u.unit_id ?? ""}</span></span>
+            <span class="count">${u.count.toLocaleString()} / ${u.max_count.toLocaleString()}</span>
           </div>`).join("")}
       </div>
     </div>`).join("");
