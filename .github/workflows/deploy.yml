@@ -10,6 +10,8 @@ jobs:
   validate-and-pack:
     name: Validate and pack
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       # ── Checkout ────────────────────────────────────────────────────────
