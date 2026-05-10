@@ -149,6 +149,40 @@
     .runtime-row label { font-size: 11px; color: #777; white-space: nowrap; }
     .runtime-row input { width: 64px; flex-shrink: 0; }
 
+    /* ── Market offer rows ── */
+    #offers-list { display: flex; flex-direction: column; gap: 6px; }
+    .offer-row {
+      display: grid;
+      grid-template-columns: 1fr 52px auto 1fr 52px 36px 22px;
+      gap: 4px;
+      align-items: center;
+    }
+    .offer-row select, .offer-row input[type="number"] {
+      width: 100%; padding: 5px 4px; border: 1px solid #ddd;
+      border-radius: 5px; font-size: 11px; background: #fafaf9;
+      font-family: inherit;
+    }
+    .offer-row select:focus, .offer-row input:focus { outline: none; border-color: #888; }
+    .offer-arrow { font-size: 13px; color: #aaa; text-align: center; }
+    .offer-label { font-size: 10px; color: #999; text-align: center; }
+    .btn-remove-offer {
+      background: none; border: none; color: #ccc; font-size: 16px;
+      cursor: pointer; line-height: 1; padding: 0;
+    }
+    .btn-remove-offer:hover { color: #c0392b; }
+    .offer-col-headers {
+      display: grid;
+      grid-template-columns: 1fr 52px auto 1fr 52px 36px 22px;
+      gap: 4px;
+    }
+    .offer-col-headers span { font-size: 10px; color: #aaa; text-align: center; }
+    .offer-col-headers span:first-child, .offer-col-headers span:nth-child(4) { text-align: left; }
+    .btn-add-offer {
+      background: none; border: 1px dashed #ddd; border-radius: 6px;
+      color: #aaa; font-size: 12px; padding: 6px; cursor: pointer; width: 100%;
+    }
+    .btn-add-offer:hover { border-color: #0ea5e9; color: #0ea5e9; }
+
     .btn-save { background: #f0f0ee; color: #333; font-size: 12px; padding: 8px; }
     .btn-save:hover { background: #e5e4e0; }
     .setting-note {
@@ -204,10 +238,12 @@
 
 <!-- ── Market panel ── -->
 <div class="panel" id="panel-market">
-  <div class="field">
-    <label>Offers (JSON array)</label>
-    <textarea id="cfg-offers" rows="6"></textarea>
+  <div class="offer-col-headers">
+    <span>Offering</span><span>Amount</span><span></span>
+    <span>Wanting</span><span>Amount</span><span>&times;</span><span></span>
   </div>
+  <div id="offers-list"></div>
+  <button class="btn-add-offer" id="btn-add-offer">+ Add offer</button>
   <div class="runtime-row">
     <label>Runtime (h)</label>
     <input id="cfg-runtime" type="number" min="1" max="168" value="12" />
@@ -233,8 +269,8 @@
   <button class="btn btn-save" id="btn-save">Save settings</button>
   <p class="status" id="settings-status"></p>
   <div class="setting-note">
-    Supabase credentials: Dashboard → Settings → API.<br>
-    The anon key is safe here — RLS locks the table to INSERT only.
+    Supabase credentials: Dashboard &rarr; Settings &rarr; API.<br>
+    The anon key is safe here &mdash; RLS locks the table to INSERT only.
   </div>
 </div>
 
@@ -242,10 +278,10 @@
 <div class="panel" id="panel-pro">
   <div class="field">
     <label>Village IDs to send back (comma-separated)</label>
-    <textarea id="village-ids-input" rows="3" placeholder="40285, 38594, …"></textarea>
+    <textarea id="village-ids-input" rows="3" placeholder="40285, 38594, &hellip;"></textarea>
   </div>
   <p id="sendback-status"></p>
-  <button class="btn btn-pro" id="btn-sendback">Odeślij oddziały</button>
+  <button class="btn btn-pro" id="btn-sendback">Ode&#347;lij oddzia&#322;y</button>
 </div>
 
 <script src="popup.js"></script>

@@ -7,7 +7,7 @@ const DEFAULT_OFFERS = [
 ];
 const DEFAULT_RUNTIME = 12;
 
-// ── Tab switching ────────────────────────────────────────────────────────────────────────
+// ── Tab switching ──────────────────────────────────────────────────────────────────────────────────────
 
 const tabs = {
   units:    { btn: document.getElementById("tab-units"),    panel: document.getElementById("panel-units"),    activeClass: "active-units" },
@@ -29,7 +29,7 @@ Object.keys(tabs).forEach(name => {
   tabs[name].btn.addEventListener("click", () => switchTab(name));
 });
 
-// ── Shared helpers ───────────────────────────────────────────────────────────────────────
+// ── Shared helpers ────────────────────────────────────────────────────────────────────────────────────
 
 const dot = document.getElementById("status-dot");
 function setDot(state) { dot.className = `dot ${state}`; }
@@ -79,7 +79,7 @@ async function sendToSupabase(table, payload, statusId, btnSend, btnRead) {
   });
 }
 
-// ── Load saved settings ───────────────────────────────────────────────────────────────
+// ── Load saved settings ──────────────────────────────────────────────────────────────────────────────────
 
 chrome.storage.local.get(
   ["supabaseUrl", "supabaseAnonKey", "licenseKey", "marketOffers", "marketRuntime", "lastTab"],
@@ -87,7 +87,7 @@ chrome.storage.local.get(
     if (supabaseUrl)     document.getElementById("cfg-url").value     = supabaseUrl;
     if (supabaseAnonKey) document.getElementById("cfg-key").value     = supabaseAnonKey;
     if (licenseKey)      document.getElementById("cfg-license").value = licenseKey;
-    document.getElementById("cfg-offers").value  = JSON.stringify(marketOffers ?? DEFAULT_OFFERS, null, 2);
+    renderOffersUI(marketOffers ?? DEFAULT_OFFERS);
     document.getElementById("cfg-runtime").value = marketRuntime ?? DEFAULT_RUNTIME;
     if (lastTab && tabs[lastTab] && !tabs[lastTab].btn.classList.contains("hidden")) {
       switchTab(lastTab);
@@ -97,7 +97,7 @@ chrome.storage.local.get(
   }
 );
 
-// ── Save settings ──────────────────────────────────────────────────────────────────────
+// ── Save settings ──────────────────────────────────────────────────────────────────────────────────────
 
 document.getElementById("btn-save").addEventListener("click", async () => {
   const url     = document.getElementById("cfg-url").value.trim().replace(/\/$/, "");
@@ -110,7 +110,7 @@ document.getElementById("btn-save").addEventListener("click", async () => {
   setTimeout(() => setStatus("settings-status", ""), 2000);
 });
 
-// ── Units tab ────────────────────────────────────────────────────────────────────────
+// ── Units tab ────────────────────────────────────────────────────────────────────────────────────
 
 const wuPreview = document.getElementById("wu-preview");
 const wuBtnRead = document.getElementById("wu-btn-read");
@@ -178,7 +178,7 @@ wuBtnSend.addEventListener("click", () => {
   sendToSupabase("unit_snapshots", wuPayload, "wu-status", wuBtnSend, wuBtnRead);
 });
 
-// ── Reports tab ──────────────────────────────────────────────────────────────────────
+// ── Reports tab ──────────────────────────────────────────────────────────────────────────────────
 
 const wgPreview = document.getElementById("wg-preview");
 const wgBtnRead = document.getElementById("wg-btn-read");
@@ -260,9 +260,57 @@ wgBtnSend.addEventListener("click", () => {
   sendToSupabase("battle_reports", wgPayload, "wg-status", wgBtnSend, wgBtnRead);
 });
 
-// ── Market tab ───────────────────────────────────────────────────────────────────────
+// ── Market tab ───────────────────────────────────────────────────────────────────────────────────
 
-const btnMarket = document.getElementById("btn-market");
+const btnMarket  = document.getElementById("btn-market");
+const offersList = document.getElementById("offers-list");
+const RESOURCES  = ["wood", "brick", "ore", "food", "gold", "horses"];
+
+function resourceSelect(value) {
+  return `<select>${RESOURCES.map(r =>
+    `<option value="${r}"${r === value ? " selected" : ""}>${r}</option>`
+  ).join("")}</select>`;
+}
+
+function addOfferRow(offer) {
+  const row = document.createElement("div");
+  row.className = "offer-row";
+  row.innerHTML = `
+    ${resourceSelect(offer.offeringType)}
+    <input type="number" min="1" value="${offer.offeringAmount}" title="Offering amount">
+    <span class="offer-arrow">→</span>
+    ${resourceSelect(offer.wantingType)}
+    <input type="number" min="1" value="${offer.wantingAmount}" title="Wanting amount">
+    <input type="number" min="1" max="99" value="${offer.count}" title="Count">
+    <button class="btn-remove-offer" title="Remove">×</button>`;
+  row.querySelector(".btn-remove-offer").addEventListener("click", () => row.remove());
+  offersList.appendChild(row);
+}
+
+function renderOffersUI(offers) {
+  offersList.innerHTML = "";
+  offers.forEach(o => addOfferRow(o));
+}
+
+function readOffersFromUI() {
+  const rows = offersList.querySelectorAll(".offer-row");
+  if (rows.length === 0) return DEFAULT_OFFERS;
+  return Array.from(rows).map(row => {
+    const selects = row.querySelectorAll("select");
+    const inputs  = row.querySelectorAll("input[type='number']");
+    return {
+      offeringType:   selects[0].value,
+      offeringAmount: parseInt(inputs[0].value, 10) || 1000,
+      wantingType:    selects[1].value,
+      wantingAmount:  parseInt(inputs[1].value, 10) || 1700,
+      count:          parseInt(inputs[2].value, 10) || 1,
+    };
+  });
+}
+
+document.getElementById("btn-add-offer").addEventListener("click", () => {
+  addOfferRow({ offeringType: "wood", offeringAmount: 1000, wantingType: "food", wantingAmount: 1700, count: 1 });
+});
 
 async function checkActiveTab() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -271,20 +319,9 @@ async function checkActiveTab() {
   btnMarket.disabled = !isGame;
 }
 
-function parseOffersInput(raw) {
-  try {
-    const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-  } catch { /* fall through */ }
-  setStatus("market-status", "Invalid JSON — using defaults.", "error");
-  setTimeout(() => setStatus("market-status", ""), 2500);
-  return DEFAULT_OFFERS;
-}
-
 btnMarket.addEventListener("click", async () => {
-  const raw     = document.getElementById("cfg-offers").value;
+  const offers  = readOffersFromUI();
   const runtime = parseInt(document.getElementById("cfg-runtime").value, 10) || DEFAULT_RUNTIME;
-  const offers  = parseOffersInput(raw);
   await chrome.storage.local.set({ marketOffers: offers, marketRuntime: runtime });
 
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -302,10 +339,9 @@ btnMarket.addEventListener("click", async () => {
 });
 
 function runMarketOffers(offers, runtime) {
-  var params = new URLSearchParams(window.location.search);
-  var userToken = params.get("userToken");
+  var userToken = window.userToken;
   if (!userToken) {
-    console.error("userToken not found in page URL.");
+    console.error("userToken not found on page (window.userToken is undefined).");
     return;
   }
 
@@ -356,7 +392,7 @@ function runMarketOffers(offers, runtime) {
   });
 }
 
-// ── Pro tab (license-gated) ────────────────────────────────────────────────────────────────
+// ── Pro tab (license-gated) ─────────────────────────────────────────────────────────────────────────────────────
 
 async function checkLicense(supabaseUrl, licenseKey) {
   if (!supabaseUrl || !licenseKey) return;
