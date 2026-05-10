@@ -1,5 +1,12 @@
 // popup.js
 
+const DEFAULT_OFFERS = [
+  { offeringType: "wood",  offeringAmount: 1000, wantingType: "food", wantingAmount: 1700, count: 3 },
+  { offeringType: "brick", offeringAmount: 1000, wantingType: "food", wantingAmount: 1700, count: 3 },
+  { offeringType: "ore",   offeringAmount: 1000, wantingType: "food", wantingAmount: 1700, count: 3 },
+];
+const DEFAULT_RUNTIME = 12;
+
 const dot        = document.getElementById("status-dot");
 const statusEl   = document.getElementById("status");
 const btnRead    = document.getElementById("btn-read");
@@ -9,12 +16,14 @@ const card       = document.getElementById("preview-card");
 const cfgUrl     = document.getElementById("cfg-url");
 const cfgKey     = document.getElementById("cfg-key");
 const cfgLicense = document.getElementById("cfg-license");
+const cfgOffers  = document.getElementById("cfg-offers");
+const cfgRuntime = document.getElementById("cfg-runtime");
 const btnSave    = document.getElementById("btn-save");
 const btnMarket  = document.getElementById("btn-market");
 
 let scrapedPayload = null;
 
-// ── Helpers ────────────────────────────────────────────────────────────────
+// ── Helpers ────────────────────────────────────────────────────────────────────────
 
 function setStatus(msg, type = "") {
   statusEl.textContent = msg;
@@ -43,33 +52,40 @@ function renderPreview(data) {
   card.classList.add("visible");
 }
 
-// ── Load saved settings ────────────────────────────────────────────────────
+// ── Load saved settings ───────────────────────────────────────────────────────────────
 
 chrome.storage.local.get(
-  ["supabaseUrl", "supabaseAnonKey", "licenseKey"],
-  ({ supabaseUrl, supabaseAnonKey, licenseKey }) => {
+  ["supabaseUrl", "supabaseAnonKey", "licenseKey", "marketOffers", "marketRuntime"],
+  ({ supabaseUrl, supabaseAnonKey, licenseKey, marketOffers, marketRuntime }) => {
     if (supabaseUrl)     cfgUrl.value     = supabaseUrl;
     if (supabaseAnonKey) cfgKey.value     = supabaseAnonKey;
     if (licenseKey)      cfgLicense.value = licenseKey;
+    cfgOffers.value  = JSON.stringify(marketOffers ?? DEFAULT_OFFERS, null, 2);
+    cfgRuntime.value = marketRuntime ?? DEFAULT_RUNTIME;
     checkLicense(supabaseUrl, licenseKey);
     checkActiveTab();
   }
 );
 
-// ── Save settings ──────────────────────────────────────────────────────────
+// ── Save settings ──────────────────────────────────────────────────────────────────────
 
 btnSave.addEventListener("click", async () => {
   const url     = cfgUrl.value.trim().replace(/\/$/, "");
   const key     = cfgKey.value.trim();
   const license = cfgLicense.value.trim();
   if (!url || !key) { setStatus("Fill in both fields.", "error"); return; }
-  await chrome.storage.local.set({ supabaseUrl: url, supabaseAnonKey: key, licenseKey: license });
+  const offers  = parseOffersInput(cfgOffers.value);
+  const runtime = parseInt(cfgRuntime.value, 10) || DEFAULT_RUNTIME;
+  await chrome.storage.local.set({
+    supabaseUrl: url, supabaseAnonKey: key, licenseKey: license,
+    marketOffers: offers, marketRuntime: runtime,
+  });
   setStatus("Settings saved.", "success");
   checkLicense(url, license);
   setTimeout(() => setStatus(""), 2000);
 });
 
-// ── Read units ─────────────────────────────────────────────────────────────
+// ── Read units ────────────────────────────────────────────────────────────────────────
 
 btnRead.addEventListener("click", async () => {
   setDot("loading");
@@ -111,7 +127,7 @@ btnRead.addEventListener("click", async () => {
   });
 });
 
-// ── Download JSON ──────────────────────────────────────────────────────────
+// ── Download JSON ──────────────────────────────────────────────────────────────────────
 
 btnDl.addEventListener("click", () => {
   if (!scrapedPayload) return;
@@ -128,7 +144,7 @@ btnDl.addEventListener("click", () => {
   setTimeout(() => setStatus(`${scrapedPayload.total_players} player(s) ready to send.`, "success"), 1500);
 });
 
-// ── License gate (Send Back Support) ──────────────────────────────────
+// ── License gate (Send Back Support) ─────────────────────────────────────────
 
 async function checkLicense(supabaseUrl, licenseKey) {
   const container = document.getElementById("send-back-container");
@@ -243,7 +259,7 @@ async function sendBackSupportOnPage(villageIds) {
   }
 }
 
-// ── Market Offers ──────────────────────────────────────────────────────────
+// ── Market Offers ──────────────────────────────────────────────────────────────────────
 
 async function checkActiveTab() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -254,17 +270,86 @@ async function checkActiveTab() {
 
 btnMarket.addEventListener("click", async () => {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  const { marketOffers, marketRuntime } = await chrome.storage.local.get(["marketOffers", "marketRuntime"]);
+  const offers  = marketOffers  ?? DEFAULT_OFFERS;
+  const runtime = marketRuntime ?? DEFAULT_RUNTIME;
   try {
     await chrome.scripting.executeScript({
       target: { tabId: tab.id },
-      files:  ["features/market-offers/marketOffers.js"],
+      func:   runMarketOffers,
+      args:   [offers, runtime],
     });
   } catch (e) {
     setStatus("Market offers failed: " + e.message, "error");
   }
 });
 
-// ── Send to Supabase ───────────────────────────────────────────────────────
+function parseOffersInput(raw) {
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+  } catch { /* fall through */ }
+  setStatus("Invalid offers JSON — using defaults.", "error");
+  setTimeout(() => setStatus(""), 2500);
+  return DEFAULT_OFFERS;
+}
+
+function runMarketOffers(offers, runtime) {
+  var params = new URLSearchParams(window.location.search);
+  var userToken = params.get("userToken");
+  if (!userToken) {
+    console.error("userToken not found in page URL.");
+    return;
+  }
+
+  var tasks = [];
+  for (var o = 0; o < offers.length; o++) {
+    var offer = offers[o];
+    for (var i = 0; i < offer.count; i++) {
+      tasks.push({ offer: offer, index: i + 1 });
+    }
+  }
+
+  console.log("Sending " + tasks.length + " total requests... token=" + userToken.slice(0, 6) + "****");
+
+  var promises = [];
+  for (var j = 0; j < tasks.length; j++) {
+    (function(task) {
+      var url = "ajax_interface.php?" + new URLSearchParams({
+        ajax_action:    "newMarketOffer",
+        userToken:      userToken,
+        offeringType:   task.offer.offeringType,
+        offeringAmount: task.offer.offeringAmount,
+        wantingType:    task.offer.wantingType,
+        wantingAmount:  task.offer.wantingAmount,
+        runtime:        runtime,
+      });
+      promises.push(
+        fetch(url, { credentials: "include" }).then(function(res) {
+          return res.text().then(function(text) {
+            console.log(
+              "[" + task.offer.offeringType + " " + task.index + "/" + task.offer.count + "]"
+              + " " + task.offer.offeringAmount + "->" + task.offer.wantingAmount + " " + task.offer.wantingType
+              + " | Status: " + res.status + " | " + text
+            );
+            return { offer: task.offer, index: task.index, status: res.status, body: text };
+          });
+        })
+      );
+    })(tasks[j]);
+  }
+
+  Promise.allSettled(promises).then(function(results) {
+    var succeeded = 0, failed = 0;
+    for (var k = 0; k < results.length; k++) {
+      if (results[k].status === "fulfilled") succeeded++;
+      else failed++;
+    }
+    console.log("Done. " + succeeded + " succeeded, " + failed + " failed.");
+  });
+}
+
+// ── Send to Supabase ───────────────────────────────────────────────────────────────────
 
 btnSend.addEventListener("click", async () => {
   if (!scrapedPayload) return;

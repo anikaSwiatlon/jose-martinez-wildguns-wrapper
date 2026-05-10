@@ -159,6 +159,15 @@
           <label>License key (Pro features)</label>
           <input id="cfg-license" type="password" placeholder="WG-XXXX-XXXX-XXXX" />
         </div>
+        <div>
+          <label>Market offers (JSON)</label>
+          <textarea id="cfg-offers" rows="5" style="width:100%;padding:6px 8px;border:1px solid #ddd;border-radius:5px;font-size:11px;font-family:'SF Mono','Fira Code',monospace;background:#fafaf9;resize:vertical;"></textarea>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <label style="margin:0;white-space:nowrap;">Runtime (h)</label>
+          <input id="cfg-runtime" type="number" min="1" max="168" value="12"
+            style="width:60px;padding:6px 8px;border:1px solid #ddd;border-radius:5px;font-size:12px;" />
+        </div>
         <button class="btn btn-save" id="btn-save">Save settings</button>
       </div>
     </details>
