@@ -27,28 +27,19 @@
 
   "content_scripts": [
     {
-      "matches": [
-        "https://*.wildungs.com/*",
-        "https://*.wildguns.gameforge.com/*"
-      ],
+      "matches": ["https://*.wildungs.com/*"],
       "js": ["features/unit-reader/content.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://*.wildguns.gameforge.com/*"],
+      "js": ["features/battle-reports/content.js"],
       "run_at": "document_idle"
     }
   ],
 
-  "web_accessible_resources": [
-    {
-      "resources": ["features/market-offers/marketOffers.js"],
-      "matches": [
-        "https://*.wildungs.com/*",
-        "https://*.wildguns.gameforge.com/*"
-      ]
-    }
-  ],
-
   "background": {
-    "service_worker": "background.js",
-    "scripts": ["background.js"]
+    "service_worker": "background.js"
   },
 
   "icons": {

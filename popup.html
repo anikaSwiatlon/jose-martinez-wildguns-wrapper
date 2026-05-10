@@ -2,177 +2,252 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Wildungs Unit Tracker</title>
+  <title>Jose Martinez Wildguns Helper</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      width: 340px;
+      width: 360px;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       font-size: 13px;
       color: #1a1a1a;
       background: #f9f8f6;
     }
 
+    /* ── Header ── */
     header {
-      padding: 12px 16px;
+      padding: 11px 16px 0;
       background: #fff;
       border-bottom: 1px solid #e5e4e0;
+    }
+    .header-top {
       display: flex;
       align-items: center;
       gap: 8px;
+      padding-bottom: 11px;
     }
-    header h1 { font-size: 14px; font-weight: 600; }
+    header h1 { font-size: 14px; font-weight: 600; flex: 1; }
 
     .dot {
       width: 8px; height: 8px; border-radius: 50%;
-      background: #d1d0cc; flex-shrink: 0;
-      transition: background .3s;
+      background: #d1d0cc; flex-shrink: 0; transition: background .3s;
     }
     .dot.ready   { background: #3ecf8e; }
     .dot.error   { background: #e84e4e; }
     .dot.loading { background: #f59e0b; animation: pulse .8s ease-in-out infinite alternate; }
     @keyframes pulse { to { opacity: .4; } }
 
-    main { padding: 12px 16px; display: flex; flex-direction: column; gap: 10px; }
+    /* ── Tabs ── */
+    .tabs { display: flex; }
+    .tab-btn {
+      flex: 1;
+      padding: 8px 6px;
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      font-size: 11px;
+      font-weight: 500;
+      color: #999;
+      cursor: pointer;
+      transition: color .15s, border-color .15s;
+      white-space: nowrap;
+    }
+    .tab-btn:hover { color: #555; }
+    .tab-btn.active-units    { color: #3ecf8e; border-bottom-color: #3ecf8e; }
+    .tab-btn.active-reports  { color: #e8a020; border-bottom-color: #e8a020; }
+    .tab-btn.active-market   { color: #0ea5e9; border-bottom-color: #0ea5e9; }
+    .tab-btn.active-settings { color: #555;    border-bottom-color: #555; }
+    .tab-btn.active-pro      { color: #7c3aed; border-bottom-color: #7c3aed; }
+    .hidden { display: none !important; }
 
-    /* Preview */
-    #preview-card {
+    /* ── Panels ── */
+    .panel { display: none; padding: 12px 16px; flex-direction: column; gap: 10px; }
+    .panel.active { display: flex; }
+
+    /* ── Preview card ── */
+    .preview-card {
       background: #fff;
       border: 1px solid #e5e4e0;
       border-radius: 8px;
-      max-height: 260px;
+      overflow: hidden;
+      max-height: 240px;
       overflow-y: auto;
       display: none;
     }
-    #preview-card.visible { display: block; }
+    .preview-card.visible { display: block; }
 
-    .player-block { padding: 8px 12px; border-bottom: 1px solid #f0f0ee; }
+    /* Wildungs preview */
+    .player-block { padding: 7px 12px; border-bottom: 1px solid #f0f0ee; }
     .player-block:last-child { border-bottom: none; }
-    .player-name {
-      font-weight: 600; font-size: 12px; color: #1a1a1a;
-      display: flex; justify-content: space-between; align-items: baseline;
-    }
-    .player-city { font-size: 11px; color: #888; font-weight: 400; }
-    .unit-list { margin-top: 5px; display: flex; flex-direction: column; gap: 2px; }
-    .unit-row {
-      display: flex; justify-content: space-between;
-      font-size: 12px; color: #444;
-    }
+    .player-name  { font-weight: 600; font-size: 12px; display: flex; justify-content: space-between; }
+    .player-city  { font-size: 11px; color: #888; margin-bottom: 3px; }
+    .village-id   { color: #aaa; font-size: 10px; font-weight: 400; }
+    .unit-id      { color: #bbb; font-size: 10px; }
+    .unit-row     { display: flex; justify-content: space-between; font-size: 12px; color: #444; }
     .unit-row .count { color: #888; font-variant-numeric: tabular-nums; }
-    .village-id { color: #aaa; font-size: 10px; font-weight: 400; }
-    .unit-id    { color: #bbb; font-size: 10px; }
 
-    /* Market Offers */
-    .btn-market { background: #0ea5e9; color: #fff; }
-    .btn-market:not(:disabled):hover { background: #0284c7; }
+    /* WildGuns preview */
+    .report-title { padding: 7px 12px 3px; font-weight: 600; font-size: 12px; color: #444; border-bottom: 1px solid #f0f0ee; }
+    .report-meta  { padding: 3px 12px 7px; font-size: 11px; color: #999; border-bottom: 1px solid #f0f0ee; display: flex; gap: 10px; }
+    .side-block   { padding: 7px 12px; border-bottom: 1px solid #f0f0ee; }
+    .side-block:last-child { border-bottom: none; }
+    .side-label   { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 2px; }
+    .side-label.atk { color: #c0392b; }
+    .side-label.def { color: #1a7a4a; }
+    .side-player  { font-weight: 600; font-size: 12px; display: flex; justify-content: space-between; margin-bottom: 3px; }
+    .losses       { color: #c0392b; }
+    .group-badge  { font-size: 10px; font-weight: 600; color: #854F0B; background: #FAEEDA; border-radius: 3px; padding: 1px 4px; margin-left: 3px; }
 
-    /* Send Back Support (paywalled — injected into #send-back-container) */
-    .btn-sendback { background: #7c3aed; color: #fff; }
-    .btn-sendback:not(:disabled):hover { background: #6d28d9; }
-    #sendback-status { font-size: 12px; min-height: 16px; text-align: center; }
-    #sendback-status.loading { color: #b45309; }
-    #sendback-status.success { color: #1a7a4a; }
-    #sendback-status.error   { color: #b83232; }
+    /* ── Status ── */
+    .status { font-size: 12px; color: #666; min-height: 16px; text-align: center; }
+    .status.success { color: #1a7a4a; }
+    .status.error   { color: #b83232; }
 
-    /* Status */
-    #status { font-size: 12px; color: #666; min-height: 16px; text-align: center; }
-    #status.success { color: #1a7a4a; }
-    #status.error   { color: #b83232; }
-
-    /* Buttons */
+    /* ── Buttons ── */
     .btn {
       width: 100%; padding: 9px 14px; border-radius: 7px; border: none;
       font-size: 13px; font-weight: 500; cursor: pointer;
       transition: opacity .15s, background .15s;
     }
     .btn:disabled { opacity: .4; cursor: default; }
-    .btn-read     { background: #3ecf8e; color: #0a3d25; }
-    .btn-read:not(:disabled):hover { background: #33be80; }
 
-    .btn-row { display: flex; gap: 8px; }
+    .btn-units { background: #3ecf8e; color: #0a3d25; }
+    .btn-units:not(:disabled):hover { background: #33be80; }
+
+    .btn-reports { background: #e8a020; color: #3d1f00; }
+    .btn-reports:not(:disabled):hover { background: #d49018; }
+
+    .btn-market { background: #0ea5e9; color: #fff; }
+    .btn-market:not(:disabled):hover { background: #0284c7; }
+
+    .btn-pro { background: #7c3aed; color: #fff; }
+    .btn-pro:not(:disabled):hover { background: #6d28d9; }
+
+    .btn-row  { display: flex; gap: 8px; }
     .btn-dl   { flex: 1; background: #f0f0ee; color: #333; }
     .btn-dl:not(:disabled):hover { background: #e5e4e0; }
     .btn-send { flex: 1; background: #1a1a1a; color: #fff; }
     .btn-send:not(:disabled):hover { background: #333; }
 
-    /* Settings */
-    details {
-      background: #fff; border: 1px solid #e5e4e0;
-      border-radius: 8px; overflow: hidden;
-    }
-    summary {
-      padding: 9px 12px; font-size: 12px; font-weight: 500; color: #555;
-      cursor: pointer; user-select: none; list-style: none;
-      display: flex; justify-content: space-between; align-items: center;
-    }
-    summary::after { content: "›"; font-size: 16px; color: #aaa; }
-    details[open] summary::after { content: "‹"; }
-    .settings-body { padding: 0 12px 12px; display: flex; flex-direction: column; gap: 8px; }
-    label { font-size: 11px; color: #777; display: block; margin-bottom: 2px; }
-    input[type="text"], input[type="password"] {
-      width: 100%; padding: 6px 8px; border: 1px solid #ddd;
-      border-radius: 5px; font-size: 12px;
+    /* ── Fields ── */
+    .field { display: flex; flex-direction: column; gap: 3px; }
+    .field label { font-size: 11px; color: #777; }
+    input[type="text"], input[type="password"], input[type="number"] {
+      width: 100%; padding: 7px 9px; border: 1px solid #ddd;
+      border-radius: 6px; font-size: 12px;
       font-family: "SF Mono", "Fira Code", monospace; background: #fafaf9;
     }
-    input:focus { outline: none; border-color: #3ecf8e; }
-    .btn-save { background: #f0f0ee; color: #333; font-size: 12px; padding: 6px 10px; }
+    input:focus { outline: none; border-color: #888; }
+    textarea {
+      width: 100%; padding: 7px 9px; border: 1px solid #ddd;
+      border-radius: 6px; font-size: 11px;
+      font-family: "SF Mono", "Fira Code", monospace; background: #fafaf9;
+      resize: vertical;
+    }
+    textarea:focus { outline: none; border-color: #888; }
+    .runtime-row { display: flex; gap: 8px; align-items: center; }
+    .runtime-row label { font-size: 11px; color: #777; white-space: nowrap; }
+    .runtime-row input { width: 64px; flex-shrink: 0; }
+
+    .btn-save { background: #f0f0ee; color: #333; font-size: 12px; padding: 8px; }
     .btn-save:hover { background: #e5e4e0; }
+    .setting-note {
+      font-size: 11px; color: #999; line-height: 1.5;
+      background: #fff; border: 1px solid #e5e4e0; border-radius: 6px;
+      padding: 8px 10px;
+    }
+
+    /* ── Pro tab status ── */
+    #sendback-status { font-size: 12px; min-height: 16px; text-align: center; }
+    #sendback-status.loading { color: #b45309; }
+    #sendback-status.success { color: #1a7a4a; }
+    #sendback-status.error   { color: #b83232; }
   </style>
 </head>
 <body>
-  <header>
+
+<header>
+  <div class="header-top">
     <div class="dot" id="status-dot"></div>
-    <h1>Wildungs Unit Tracker</h1>
-  </header>
+    <h1>Jose Martinez Wildguns Helper</h1>
+  </div>
+  <div class="tabs">
+    <button class="tab-btn active-units" id="tab-units">Units</button>
+    <button class="tab-btn" id="tab-reports">Reports</button>
+    <button class="tab-btn" id="tab-market">Market</button>
+    <button class="tab-btn" id="tab-settings">Settings</button>
+    <button class="tab-btn hidden" id="tab-pro">Pro</button>
+  </div>
+</header>
 
-  <main>
-    <div id="preview-card"></div>
+<!-- ── Units panel ── -->
+<div class="panel active" id="panel-units">
+  <div class="preview-card" id="wu-preview"></div>
+  <p class="status" id="wu-status">Open the unit support panel, then click Read.</p>
+  <button class="btn btn-units" id="wu-btn-read">Read units from page</button>
+  <div class="btn-row">
+    <button class="btn btn-dl"   id="wu-btn-dl"   disabled>Download JSON</button>
+    <button class="btn btn-send" id="wu-btn-send" disabled>Send to Supabase</button>
+  </div>
+</div>
 
-    <p id="status">Open the unit support panel, then click Read.</p>
+<!-- ── Reports panel ── -->
+<div class="panel" id="panel-reports">
+  <div class="preview-card" id="wg-preview"></div>
+  <p class="status" id="wg-status">Open a battle report, then click Read.</p>
+  <button class="btn btn-reports" id="wg-btn-read">Read battle report</button>
+  <div class="btn-row">
+    <button class="btn btn-dl"   id="wg-btn-dl"   disabled>Download JSON</button>
+    <button class="btn btn-send" id="wg-btn-send" disabled>Send to Supabase</button>
+  </div>
+</div>
 
-    <button class="btn btn-read" id="btn-read">Read units from page</button>
+<!-- ── Market panel ── -->
+<div class="panel" id="panel-market">
+  <div class="field">
+    <label>Offers (JSON array)</label>
+    <textarea id="cfg-offers" rows="6"></textarea>
+  </div>
+  <div class="runtime-row">
+    <label>Runtime (h)</label>
+    <input id="cfg-runtime" type="number" min="1" max="168" value="12" />
+  </div>
+  <p class="status" id="market-status"></p>
+  <button class="btn btn-market" id="btn-market" disabled>Send Market Offers</button>
+</div>
 
-    <div class="btn-row">
-      <button class="btn btn-dl"   id="btn-dl"   disabled>Download JSON</button>
-      <button class="btn btn-send" id="btn-send" disabled>Send to Supabase</button>
-    </div>
+<!-- ── Settings panel ── -->
+<div class="panel" id="panel-settings">
+  <div class="field">
+    <label>Supabase project URL</label>
+    <input id="cfg-url" type="text" placeholder="https://xxxx.supabase.co" />
+  </div>
+  <div class="field">
+    <label>Anon / public key</label>
+    <input id="cfg-key" type="password" placeholder="eyJ..." />
+  </div>
+  <div class="field">
+    <label>License key (Pro features)</label>
+    <input id="cfg-license" type="password" placeholder="WG-XXXX-XXXX-XXXX" />
+  </div>
+  <button class="btn btn-save" id="btn-save">Save settings</button>
+  <p class="status" id="settings-status"></p>
+  <div class="setting-note">
+    Supabase credentials: Dashboard → Settings → API.<br>
+    The anon key is safe here — RLS locks the table to INSERT only.
+  </div>
+</div>
 
-    <!-- Send Back Support: populated by popup.js only on valid license -->
-    <div id="send-back-container"></div>
+<!-- ── Pro panel (hidden until valid license) ── -->
+<div class="panel" id="panel-pro">
+  <div class="field">
+    <label>Village IDs to send back (comma-separated)</label>
+    <textarea id="village-ids-input" rows="3" placeholder="40285, 38594, …"></textarea>
+  </div>
+  <p id="sendback-status"></p>
+  <button class="btn btn-pro" id="btn-sendback">Odeślij oddziały</button>
+</div>
 
-    <!-- Market Offers: always visible, enabled only when on game tab -->
-    <button class="btn btn-market" id="btn-market" disabled>Send Market Offers</button>
-
-    <details id="settings-panel">
-      <summary>Settings</summary>
-      <div class="settings-body">
-        <div>
-          <label>Supabase project URL</label>
-          <input id="cfg-url" type="text" placeholder="https://xxxx.supabase.co" />
-        </div>
-        <div>
-          <label>Anon / public key</label>
-          <input id="cfg-key" type="password" placeholder="eyJ..." />
-        </div>
-        <div>
-          <label>License key (Pro features)</label>
-          <input id="cfg-license" type="password" placeholder="WG-XXXX-XXXX-XXXX" />
-        </div>
-        <div>
-          <label>Market offers (JSON)</label>
-          <textarea id="cfg-offers" rows="5" style="width:100%;padding:6px 8px;border:1px solid #ddd;border-radius:5px;font-size:11px;font-family:'SF Mono','Fira Code',monospace;background:#fafaf9;resize:vertical;"></textarea>
-        </div>
-        <div style="display:flex;gap:8px;align-items:center;">
-          <label style="margin:0;white-space:nowrap;">Runtime (h)</label>
-          <input id="cfg-runtime" type="number" min="1" max="168" value="12"
-            style="width:60px;padding:6px 8px;border:1px solid #ddd;border-radius:5px;font-size:12px;" />
-        </div>
-        <button class="btn btn-save" id="btn-save">Save settings</button>
-      </div>
-    </details>
-  </main>
-
-  <script src="popup.js"></script>
+<script src="popup.js"></script>
 </body>
 </html>
