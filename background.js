@@ -1,52 +1,41 @@
 // background.js
-// Service worker. Receives the parsed unit data from the popup and
-// POSTs it to Supabase.
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.type !== "SEND_TO_SUPABASE") return;
 
-  // Run async and keep the message channel open.
-  handleSupabasePost(message.payload)
-    .then((result) => sendResponse(result))
-    .catch((err)  => sendResponse({ success: false, error: err.message }));
+  handlePost(message.table, message.payload)
+    .then(r  => sendResponse(r))
+    .catch(e => sendResponse({ success: false, error: e.message }));
 
-  return true; // keeps sendResponse alive for async
+  return true;
 });
 
-async function handleSupabasePost(payload) {
-  // Pull config from storage (set by the settings/popup on first run).
+async function handlePost(table, payload) {
   const { supabaseUrl, supabaseAnonKey, supabaseUserToken } =
     await chrome.storage.local.get(["supabaseUrl", "supabaseAnonKey", "supabaseUserToken"]);
 
   if (!supabaseUrl || !supabaseAnonKey) {
-    return {
-      success: false,
-      error: "Supabase URL or anon key not configured. Open the extension settings.",
-    };
+    return { success: false, error: "Supabase not configured. Open Settings." };
   }
 
-  const endpoint = `${supabaseUrl}/rest/v1/unit_snapshots`;
-
-  // Use the user JWT if logged in, otherwise fall back to the anon key.
   const authHeader = supabaseUserToken
     ? `Bearer ${supabaseUserToken}`
     : `Bearer ${supabaseAnonKey}`;
 
-  const response = await fetch(endpoint, {
-    method: "POST",
+  const res = await fetch(`${supabaseUrl}/rest/v1/${table}`, {
+    method:  "POST",
     headers: {
       "Content-Type":  "application/json",
       "apikey":        supabaseAnonKey,
       "Authorization": authHeader,
-      "Prefer":        "return=minimal", // don't return the full row
+      "Prefer":        "return=minimal",
     },
     body: JSON.stringify(payload),
   });
 
-  if (!response.ok) {
-    const text = await response.text();
-    return { success: false, error: `Supabase error ${response.status}: ${text}` };
+  if (!res.ok) {
+    const text = await res.text();
+    return { success: false, error: `Supabase ${res.status}: ${text}` };
   }
-
   return { success: true };
 }

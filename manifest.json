@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Jose Martinez Wildguns Helper",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "Reads city guard unit summaries from Wildungs and saves them to your database.",
 
   "permissions": [
@@ -12,6 +12,7 @@
 
   "host_permissions": [
     "https://*.wildungs.com/*",
+    "https://*.wildguns.gameforge.com/*",
     "https://*.supabase.co/*"
   ],
 
@@ -27,14 +28,19 @@
   "content_scripts": [
     {
       "matches": ["https://*.wildungs.com/*"],
-      "js": ["content.js"],
+      "js": ["features/unit-reader/content.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://*.wildguns.gameforge.com/*"],
+      "js": ["features/battle-reports/content.js"],
       "run_at": "document_idle"
     }
   ],
 
   "background": {
-    "service_worker": "background.js",
-    "scripts": ["background.js"]
+    "scripts": ["background.js"],
+    "service_worker": "background.js"
   },
 
   "icons": {
