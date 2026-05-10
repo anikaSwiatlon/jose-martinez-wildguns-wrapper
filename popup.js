@@ -360,6 +360,7 @@ function runMarketOffers(offers, runtime) {
     (function(task) {
       var url = "ajax_interface.php?" + new URLSearchParams({
         ajax_action:    "newMarketOffer",
+        userToken:      userToken,
         offeringType:   task.offer.offeringType,
         offeringAmount: task.offer.offeringAmount,
         wantingType:    task.offer.wantingType,
@@ -486,7 +487,8 @@ async function sendBackSupportOnPage(villageIds) {
         + "?ajax_action=sendBackSupport"
         + "&whosetroops=other"
         + sendstring
-        + "&isgoldmine=0";
+        + "&isgoldmine=0"
+        + "&userToken=" + encodeURIComponent(userToken);
 
       var resp = await fetch(url, { credentials: "include" });
       if (!resp.ok) {
