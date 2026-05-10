@@ -1,14 +1,16 @@
 // popup.js
 
-const dot      = document.getElementById("status-dot");
-const statusEl = document.getElementById("status");
-const btnRead  = document.getElementById("btn-read");
-const btnDl    = document.getElementById("btn-dl");
-const btnSend  = document.getElementById("btn-send");
-const card     = document.getElementById("preview-card");
-const cfgUrl   = document.getElementById("cfg-url");
-const cfgKey   = document.getElementById("cfg-key");
-const btnSave  = document.getElementById("btn-save");
+const dot        = document.getElementById("status-dot");
+const statusEl   = document.getElementById("status");
+const btnRead    = document.getElementById("btn-read");
+const btnDl      = document.getElementById("btn-dl");
+const btnSend    = document.getElementById("btn-send");
+const card       = document.getElementById("preview-card");
+const cfgUrl     = document.getElementById("cfg-url");
+const cfgKey     = document.getElementById("cfg-key");
+const cfgLicense = document.getElementById("cfg-license");
+const btnSave    = document.getElementById("btn-save");
+const btnMarket  = document.getElementById("btn-market");
 
 let scrapedPayload = null;
 
@@ -43,19 +45,27 @@ function renderPreview(data) {
 
 // ── Load saved settings ────────────────────────────────────────────────────
 
-chrome.storage.local.get(["supabaseUrl", "supabaseAnonKey"], ({ supabaseUrl, supabaseAnonKey }) => {
-  if (supabaseUrl)     cfgUrl.value = supabaseUrl;
-  if (supabaseAnonKey) cfgKey.value = supabaseAnonKey;
-});
+chrome.storage.local.get(
+  ["supabaseUrl", "supabaseAnonKey", "licenseKey"],
+  ({ supabaseUrl, supabaseAnonKey, licenseKey }) => {
+    if (supabaseUrl)     cfgUrl.value     = supabaseUrl;
+    if (supabaseAnonKey) cfgKey.value     = supabaseAnonKey;
+    if (licenseKey)      cfgLicense.value = licenseKey;
+    checkLicense(supabaseUrl, licenseKey);
+    checkActiveTab();
+  }
+);
 
 // ── Save settings ──────────────────────────────────────────────────────────
 
 btnSave.addEventListener("click", async () => {
-  const url = cfgUrl.value.trim().replace(/\/$/, "");
-  const key = cfgKey.value.trim();
+  const url     = cfgUrl.value.trim().replace(/\/$/, "");
+  const key     = cfgKey.value.trim();
+  const license = cfgLicense.value.trim();
   if (!url || !key) { setStatus("Fill in both fields.", "error"); return; }
-  await chrome.storage.local.set({ supabaseUrl: url, supabaseAnonKey: key });
+  await chrome.storage.local.set({ supabaseUrl: url, supabaseAnonKey: key, licenseKey: license });
   setStatus("Settings saved.", "success");
+  checkLicense(url, license);
   setTimeout(() => setStatus(""), 2000);
 });
 
@@ -116,6 +126,142 @@ btnDl.addEventListener("click", () => {
   URL.revokeObjectURL(url);
   setStatus("JSON downloaded.", "success");
   setTimeout(() => setStatus(`${scrapedPayload.total_players} player(s) ready to send.`, "success"), 1500);
+});
+
+// ── License gate (Send Back Support) ──────────────────────────────────────
+
+async function checkLicense(supabaseUrl, licenseKey) {
+  const container = document.getElementById("send-back-container");
+  container.innerHTML = "";
+  if (!supabaseUrl || !licenseKey) return;
+
+  try {
+    const res = await fetch(`${supabaseUrl}/functions/v1/license-gate`, {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({ licenseKey }),
+    });
+    if (!res.ok) return;
+    const html = (await res.text()).trim();
+    if (!html) return;
+
+    container.innerHTML = html;
+    document.getElementById("btn-sendback")
+      ?.addEventListener("click", handleSendBack);
+  } catch {
+    // Network error — feature stays invisible
+  }
+}
+
+async function handleSendBack() {
+  const input    = document.getElementById("village-ids-input");
+  const statusEl = document.getElementById("sendback-status");
+  const btn      = document.getElementById("btn-sendback");
+  const raw      = input?.value.trim() ?? "";
+
+  if (!raw) {
+    statusEl.textContent = "Enter at least one village ID.";
+    statusEl.className   = "error";
+    return;
+  }
+
+  const villageIds = raw.split(",").map(s => s.trim()).filter(Boolean);
+  statusEl.textContent = `Sending back for ${villageIds.length} village(s)…`;
+  statusEl.className   = "loading";
+  btn.disabled = true;
+
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+
+  try {
+    const results = await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func:   sendBackSupportOnPage,
+      args:   [villageIds],
+    });
+    const result = results?.[0]?.result;
+    if (result?.success) {
+      statusEl.textContent = result.message ?? "Done.";
+      statusEl.className   = "success";
+    } else {
+      statusEl.textContent = result?.error ?? "Unknown error.";
+      statusEl.className   = "error";
+    }
+  } catch (e) {
+    statusEl.textContent = e.message;
+    statusEl.className   = "error";
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function sendBackSupportOnPage(villageIds) {
+  var token = window.userToken;
+  if (!token) return { success: false, error: "userToken not found on page." };
+
+  var origGoHome  = window.goHome;
+  var origReload  = window.location.reload.bind(window.location);
+  window.goHome           = function () {};
+  window.location.reload  = function () {};
+
+  try {
+    for (var v = 0; v < villageIds.length; v++) {
+      var vid = String(villageIds[v]).trim();
+
+      // Fill each unit field to its max (stored in the link anchor's name attr)
+      var uf = document.getElementsByClassName("unitField_" + vid);
+      for (var i = 0; i < uf.length; i++) {
+        var link = document.getElementById("link_" + uf[i].id);
+        if (link) uf[i].value = link.name;
+      }
+
+      // Build sendstring from populated fields
+      var sendstring = "&sendunitsType=back";
+      var formValues = document.getElementsByClassName("toJs " + vid);
+      for (var j = 0; j < formValues.length; j++) {
+        var f = formValues[j];
+        if (f.value && (f.type !== "checkbox" || f.checked)) {
+          sendstring += "&" + f.name + "=" + encodeURIComponent(f.value);
+        }
+      }
+
+      var url = "ajax_interface.php"
+        + "?ajax_action=sendBackSupport"
+        + "&whosetroops=other"
+        + sendstring
+        + "&isgoldmine=0"
+        + "&userToken=" + encodeURIComponent(token);
+
+      var resp = await fetch(url, { credentials: "include" });
+      if (!resp.ok) {
+        return { success: false, error: "HTTP " + resp.status + " for village " + vid };
+      }
+    }
+    return { success: true, message: "Sent back for " + villageIds.length + " village(s)." };
+  } finally {
+    window.goHome          = origGoHome;
+    window.location.reload = origReload;
+  }
+}
+
+// ── Market Offers ──────────────────────────────────────────────────────────
+
+async function checkActiveTab() {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  const isGame = tab?.url &&
+    (tab.url.includes("wildungs.com") || tab.url.includes("wildguns.gameforge.com"));
+  btnMarket.disabled = !isGame;
+}
+
+btnMarket.addEventListener("click", async () => {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      files:  ["marketOffers.js"],
+    });
+  } catch (e) {
+    setStatus("Market offers failed: " + e.message, "error");
+  }
 });
 
 // ── Send to Supabase ───────────────────────────────────────────────────────

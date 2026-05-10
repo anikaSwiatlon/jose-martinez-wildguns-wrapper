@@ -69,3 +69,19 @@ create policy "anon insert only"
 --      jsonb_array_elements(players) p,
 --      jsonb_array_elements(p->'units') u
 -- order by scraped_at desc, player, unit;
+
+-- ── License table (for paywalled features) ───────────────────────────────────
+-- Queried exclusively by the Supabase Edge Function (license-gate) using the
+-- SERVICE_ROLE_KEY, which bypasses RLS. The anon key cannot touch this table.
+
+create table if not exists licenses (
+  id           bigint      generated always as identity primary key,
+  license_key  text        not null unique,
+  is_active    boolean     not null default true,
+  expires_at   timestamptz,            -- null = never expires
+  created_at   timestamptz not null default now(),
+  note         text                    -- admin label: username, order ID, etc.
+);
+
+alter table licenses enable row level security;
+-- Zero RLS policies = deny all for anon/authenticated roles by default.

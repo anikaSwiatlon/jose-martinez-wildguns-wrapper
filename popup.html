@@ -63,6 +63,18 @@
     .village-id { color: #aaa; font-size: 10px; font-weight: 400; }
     .unit-id    { color: #bbb; font-size: 10px; }
 
+    /* Market Offers */
+    .btn-market { background: #0ea5e9; color: #fff; }
+    .btn-market:not(:disabled):hover { background: #0284c7; }
+
+    /* Send Back Support (paywalled — injected into #send-back-container) */
+    .btn-sendback { background: #7c3aed; color: #fff; }
+    .btn-sendback:not(:disabled):hover { background: #6d28d9; }
+    #sendback-status { font-size: 12px; min-height: 16px; text-align: center; }
+    #sendback-status.loading { color: #b45309; }
+    #sendback-status.success { color: #1a7a4a; }
+    #sendback-status.error   { color: #b83232; }
+
     /* Status */
     #status { font-size: 12px; color: #666; min-height: 16px; text-align: center; }
     #status.success { color: #1a7a4a; }
@@ -126,6 +138,12 @@
       <button class="btn btn-send" id="btn-send" disabled>Send to Supabase</button>
     </div>
 
+    <!-- Send Back Support: populated by popup.js only on valid license -->
+    <div id="send-back-container"></div>
+
+    <!-- Market Offers: always visible, enabled only when on game tab -->
+    <button class="btn btn-market" id="btn-market" disabled>Send Market Offers</button>
+
     <details id="settings-panel">
       <summary>Settings</summary>
       <div class="settings-body">
@@ -136,6 +154,10 @@
         <div>
           <label>Anon / public key</label>
           <input id="cfg-key" type="password" placeholder="eyJ..." />
+        </div>
+        <div>
+          <label>License key (Pro features)</label>
+          <input id="cfg-license" type="password" placeholder="WG-XXXX-XXXX-XXXX" />
         </div>
         <button class="btn btn-save" id="btn-save">Save settings</button>
       </div>
