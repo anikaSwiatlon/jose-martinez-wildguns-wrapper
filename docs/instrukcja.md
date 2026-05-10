@@ -1,6 +1,6 @@
 # Jose Martinez Wildguns Helper — Instrukcja obsługi
 
-> Rozszerzenie do przeglądarki Chrome/Firefox wspomagające grę WildGuns / Wildungs.
+> Rozszerzenie do przeglądarek Chromium (Chrome, Edge, Opera, Safari) /Firefox wspomagające grę WildGuns.
 
 ---
 
@@ -104,36 +104,13 @@ Po wpisaniu danych kliknij **Save settings**. Jeśli klucz licencyjny jest ważn
 
 ---
 
-## Zakładka Pro — odesłanie oddziałów
+## Zakładka Pro 
 
 > Zakładka Pro jest widoczna tylko po podaniu ważnego klucza licencyjnego.
 
-Funkcja **Odeślij oddziały** automatycznie odsyła wybrane oddziały wspierające z powrotem do ich właścicieli.
-
-**Jak używać:**
-
-1. Otwórz panel wsparcia oddziałów na stronie Wildungs.
-2. Przejdź na zakładkę **Pro** w rozszerzeniu.
-3. W polu tekstowym wpisz **ID wiosek** oddziałów do odesłania, oddzielone przecinkami, np.:
-   ```
-   40285, 38594, 12043
-   ```
-4. Kliknij **Odeślij oddziały**.
-5. Stan operacji pojawi się pod przyciskiem (zielony = sukces, czerwony = błąd).
 
 ---
 
-## Konfiguracja Supabase
-
-Supabase to darmowa baza danych w chmurze. Aby korzystać z funkcji zapisu:
-
-1. Załóż konto na [supabase.com](https://supabase.com) i utwórz nowy projekt.
-2. W panelu projektu wejdź w **Settings → API**.
-3. Skopiuj **Project URL** oraz **anon public** key.
-4. Wklej oba w zakładce **Settings** rozszerzenia i kliknij **Save settings**.
-5. W edytorze SQL Supabase utwórz wymagane tabele (skrypt SQL dostępny w repozytorium).
-
-> Klucz `anon` jest bezpieczny — polityka RLS na tabelach zezwala wyłącznie na wstawianie danych (`INSERT`), nie na ich odczyt.
 
 ---
 
