@@ -328,6 +328,7 @@ btnMarket.addEventListener("click", async () => {
   try {
     await chrome.scripting.executeScript({
       target: { tabId: tab.id },
+      world:  "MAIN",
       func:   runMarketOffers,
       args:   [offers, runtime],
     });
@@ -339,9 +340,8 @@ btnMarket.addEventListener("click", async () => {
 });
 
 function runMarketOffers(offers, runtime) {
-  var userToken = window.userToken;
-  if (!userToken) {
-    console.error("userToken not found on page (window.userToken is undefined).");
+  if (typeof userToken === "undefined" || !userToken) {
+    console.error("userToken not found on page.");
     return;
   }
 
@@ -353,14 +353,13 @@ function runMarketOffers(offers, runtime) {
     }
   }
 
-  console.log("Sending " + tasks.length + " total requests... token=" + userToken.slice(0, 6) + "****");
+  console.log("Sending " + tasks.length + " total requests...");
 
   var promises = [];
   for (var j = 0; j < tasks.length; j++) {
     (function(task) {
       var url = "ajax_interface.php?" + new URLSearchParams({
         ajax_action:    "newMarketOffer",
-        userToken:      userToken,
         offeringType:   task.offer.offeringType,
         offeringAmount: task.offer.offeringAmount,
         wantingType:    task.offer.wantingType,
@@ -434,6 +433,7 @@ async function handleSendBack() {
   try {
     const results = await chrome.scripting.executeScript({
       target: { tabId: tab.id },
+      world:  "MAIN",
       func:   sendBackSupportOnPage,
       args:   [villageIds],
     });
@@ -454,8 +454,9 @@ async function handleSendBack() {
 }
 
 async function sendBackSupportOnPage(villageIds) {
-  var token = window.userToken;
-  if (!token) return { success: false, error: "userToken not found on page." };
+  if (typeof userToken === "undefined" || !userToken) {
+    return { success: false, error: "userToken not found on page." };
+  }
 
   var origGoHome = window.goHome;
   var origReload = window.location.reload.bind(window.location);
@@ -485,8 +486,7 @@ async function sendBackSupportOnPage(villageIds) {
         + "?ajax_action=sendBackSupport"
         + "&whosetroops=other"
         + sendstring
-        + "&isgoldmine=0"
-        + "&userToken=" + encodeURIComponent(token);
+        + "&isgoldmine=0";
 
       var resp = await fetch(url, { credentials: "include" });
       if (!resp.ok) {
