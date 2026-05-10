@@ -83,7 +83,7 @@ btnRead.addEventListener("click", async () => {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
   try {
-    await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["content.js"] });
+    await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["features/unit-reader/content.js"] });
   } catch { /* already injected */ }
 
   chrome.tabs.sendMessage(tab.id, { type: "SCRAPE_UNITS" }, (response) => {
@@ -128,7 +128,7 @@ btnDl.addEventListener("click", () => {
   setTimeout(() => setStatus(`${scrapedPayload.total_players} player(s) ready to send.`, "success"), 1500);
 });
 
-// ── License gate (Send Back Support) ──────────────────────────────────────
+// ── License gate (Send Back Support) ──────────────────────────────────
 
 async function checkLicense(supabaseUrl, licenseKey) {
   const container = document.getElementById("send-back-container");
@@ -257,7 +257,7 @@ btnMarket.addEventListener("click", async () => {
   try {
     await chrome.scripting.executeScript({
       target: { tabId: tab.id },
-      files:  ["marketOffers.js"],
+      files:  ["features/market-offers/marketOffers.js"],
     });
   } catch (e) {
     setStatus("Market offers failed: " + e.message, "error");

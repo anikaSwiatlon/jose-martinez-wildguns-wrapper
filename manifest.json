@@ -31,14 +31,14 @@
         "https://*.wildungs.com/*",
         "https://*.wildguns.gameforge.com/*"
       ],
-      "js": ["content.js"],
+      "js": ["features/unit-reader/content.js"],
       "run_at": "document_idle"
     }
   ],
 
   "web_accessible_resources": [
     {
-      "resources": ["marketOffers.js"],
+      "resources": ["features/market-offers/marketOffers.js"],
       "matches": [
         "https://*.wildungs.com/*",
         "https://*.wildguns.gameforge.com/*"
