@@ -19,13 +19,13 @@
 
 ## Instalacja
 
-1. Pobierz lub sklonuj repozytorium na swój komputer.
+1. Pobierz zip z rozszerzeniem z głównej strony repozytorium (Releases).
 2. Otwórz Chrome i wejdź na stronę `chrome://extensions`.
 3. Włącz **Tryb dewelopera** (przełącznik w prawym górnym rogu).
 4. Kliknij **Załaduj rozpakowane** i wskaż folder z rozszerzeniem.
 5. Ikona rozszerzenia pojawi się na pasku narzędzi przeglądarki.
 
-> **Firefox:** wejdź na `about:debugging` → *Ten Firefox* → *Załaduj tymczasowy dodatek* i wskaż plik `manifest.json`.
+> **Firefox:** wejdź na `about:debugging` → _Ten Firefox_ → _Załaduj tymczasowy dodatek_ i wskaż plik `manifest.json`.
 
 ---
 
@@ -84,7 +84,7 @@ Pozwala automatycznie wystawiać oferty handlowe na rynku gry.
 1. Zaloguj się do gry i pozostań na stronie gry (Wildungs lub WildGuns).
 2. Skonfiguruj oferty w zakładce Market.
 3. Kliknij **Send Market Offers** — przycisk jest aktywny tylko wtedy, gdy aktywna karta przeglądarki to strona gry.
-4. Wyniki pojawią się w konsoli deweloperskiej przeglądarki (`F12` → zakładka *Console*).
+4. Wyniki pojawią się w konsoli deweloperskiej przeglądarki (`F12` → zakładka _Console_).
 
 > Konfiguracja ofert jest zapisywana automatycznie przy każdym wysłaniu.
 
@@ -94,11 +94,11 @@ Pozwala automatycznie wystawiać oferty handlowe na rynku gry.
 
 Tutaj podajesz dane do połączenia z bazą danych Supabase i ewentualny klucz licencyjny Pro.
 
-| Pole | Co wpisać |
-|---|---|
-| **Supabase project URL** | Adres projektu, np. `https://abcdef.supabase.co` |
-| **Anon / public key** | Klucz publiczny z panelu Supabase (zakładka API) |
-| **License key** | Klucz Pro w formacie `WG-XXXX-XXXX-XXXX` (opcjonalnie) |
+| Pole                     | Co wpisać                                              |
+| ------------------------ | ------------------------------------------------------ |
+| **Supabase project URL** | Adres projektu, np. `https://abcdef.supabase.co`       |
+| **Anon / public key**    | Klucz publiczny z panelu Supabase (zakładka API)       |
+| **License key**          | Klucz Pro w formacie `WG-XXXX-XXXX-XXXX` (opcjonalnie) |
 
 Po wpisaniu danych kliknij **Save settings**. Jeśli klucz licencyjny jest ważny, pojawi się dodatkowa zakładka **Pro**.
 
@@ -139,10 +139,10 @@ Supabase to darmowa baza danych w chmurze. Aby korzystać z funkcji zapisu:
 
 ## Najczęstsze problemy
 
-| Objaw | Rozwiązanie |
-|---|---|
+| Objaw                                          | Rozwiązanie                                                                                                               |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
 | Przycisk **Read** nie działa / brak odpowiedzi | Upewnij się, że otwarta jest właściwa strona gry (panel oddziałów lub raport bitewny). Odśwież stronę i spróbuj ponownie. |
-| **Send to Supabase** zwraca błąd | Sprawdź w zakładce Settings, czy URL i klucz Supabase są poprawne. |
-| **Send Market Offers** jest nieaktywny (szary) | Aktywna karta przeglądarki musi być stroną gry (wildungs.com lub wildguns.gameforge.com). |
-| `userToken not found` w konsoli | Musisz być zalogowany do gry — token jest dostępny tylko na zalogowanej stronie. |
-| Zakładka **Pro** nie pojawia się | Sprawdź klucz licencyjny w Settings i upewnij się, że Supabase URL jest poprawny. |
+| **Send to Supabase** zwraca błąd               | Sprawdź w zakładce Settings, czy URL i klucz Supabase są poprawne.                                                        |
+| **Send Market Offers** jest nieaktywny (szary) | Aktywna karta przeglądarki musi być stroną gry (wildungs.com lub wildguns.gameforge.com).                                 |
+| `userToken not found` w konsoli                | Musisz być zalogowany do gry — token jest dostępny tylko na zalogowanej stronie.                                          |
+| Zakładka **Pro** nie pojawia się               | Sprawdź klucz licencyjny w Settings i upewnij się, że Supabase URL jest poprawny.                                         |
