@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Jose Martinez Wildguns Helper",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Reads city guard unit summaries from Wildungs and saves them to your database.",
 
   "permissions": [

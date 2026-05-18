@@ -191,6 +191,16 @@
       padding: 8px 10px;
     }
 
+    /* ── Feature toggles ── */
+    .toggle-group { display: flex; flex-direction: column; gap: 6px; }
+    .toggle-row {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 12px; color: #444;
+    }
+    .toggle-row input[type="checkbox"] {
+      width: 14px; height: 14px; accent-color: #555; cursor: pointer;
+    }
+
     /* ── Pro tab status ── */
     #sendback-status { font-size: 12px; min-height: 16px; text-align: center; }
     #sendback-status.loading { color: #b45309; }
@@ -265,6 +275,14 @@
   <div class="field">
     <label>License key (Pro features)</label>
     <input id="cfg-license" type="password" placeholder="WG-XXXX-XXXX-XXXX" />
+  </div>
+  <div class="field">
+    <label>Visible tabs</label>
+    <div class="toggle-group">
+      <div class="toggle-row"><input type="checkbox" id="toggle-units"><label for="toggle-units">Units</label></div>
+      <div class="toggle-row"><input type="checkbox" id="toggle-reports" checked><label for="toggle-reports">Reports</label></div>
+      <div class="toggle-row"><input type="checkbox" id="toggle-market" checked><label for="toggle-market">Market</label></div>
+    </div>
   </div>
   <button class="btn btn-save" id="btn-save">Save settings</button>
   <p class="status" id="settings-status"></p>
