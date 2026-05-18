@@ -24,6 +24,13 @@ jobs:
         with:
           node-version: 20
 
+      # ── Install dependencies & run tests ─────────────────────────────────
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
       # ── Install web-ext ─────────────────────────────────────────────────
       # web-ext is Mozilla's CLI tool but its `lint` command fully validates
       # Manifest V3 extensions and catches: missing fields, bad permissions,
@@ -118,7 +125,7 @@ jobs:
         run: |
           web-ext lint \
             --source-dir . \
-            --ignore-files "*.sql" "README*" ".github/**" \
+            --ignore-files "*.sql" "README*" ".github/**" "tests/**" "jest.config.js" "package*.json" \
             --self-hosted
 
       # ── Validate JS files parse without syntax errors ────────────────────
@@ -191,6 +198,9 @@ jobs:
             --exclude "*.sql" \
             --exclude "README*" \
             --exclude "node_modules/*" \
+            --exclude "tests/*" \
+            --exclude "jest.config.js" \
+            --exclude "package*.json" \
             --exclude "*.zip"
 
           echo "zip_name=${ZIP_NAME}" >> "$GITHUB_ENV"

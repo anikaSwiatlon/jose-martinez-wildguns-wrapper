@@ -20,6 +20,78 @@
 // Disabled (absent):
 //   <div class="fr_unit disabled"> ... </div>
 
+// ── Spy report parser (espionage results table) ──────────────────────────────────────────────
+// The spy report appears as a separate table inside #fightreport when the
+// attacking army included scouts that broke through. It contains sections
+// for raw materials, units, groups, and buildings — identified by Polish headers.
+
+const RESOURCE_MAP = {
+  "drewno": "wood", "glina": "brick", "ruda": "ore",
+  "żywność": "food", "zywnosc": "food",
+};
+
+function parseSpyReport(reportDiv) {
+  if (!reportDiv) return null;
+
+  const tables = reportDiv.querySelectorAll("table");
+  let spyTable = null;
+  for (const t of tables) {
+    if (t.classList.contains("fr_table")) continue;
+    if (t.id === "fr_header_table") continue;
+    const text = t.textContent.toLowerCase();
+    if (text.includes("szpiegow") || text.includes("szpieg") || text.includes("surowe materia")) {
+      spyTable = t;
+      break;
+    }
+  }
+  if (!spyTable) return null;
+
+  const rows = Array.from(spyTable.querySelectorAll("tr"));
+  const raw_materials = {};
+  const units = [];
+  const groups = [];
+  const buildings = [];
+
+  let currentSection = null;
+
+  for (const row of rows) {
+    const headerCell = row.querySelector("th, td[colspan]");
+    if (headerCell) {
+      const hText = headerCell.textContent.trim().toLowerCase();
+      if (hText.includes("surowe materia")) { currentSection = "resources"; continue; }
+      if (hText.includes("jednostk"))       { currentSection = "units";     continue; }
+      if (hText.includes("grup"))           { currentSection = "groups";    continue; }
+      if (hText.includes("budyn"))          { currentSection = "buildings"; continue; }
+    }
+
+    const cells = row.querySelectorAll("td");
+    if (cells.length < 2) continue;
+
+    const label = cells[0].textContent.trim();
+    const value = cells[1].textContent.trim();
+
+    if (currentSection === "resources") {
+      const key = RESOURCE_MAP[label.toLowerCase()];
+      if (key) raw_materials[key] = parseInt(value.replace(/\D/g, ""), 10) || 0;
+    } else if (currentSection === "units" || currentSection === "groups") {
+      const count = parseInt(value.replace(/\D/g, ""), 10) || 0;
+      if (label && count > 0) {
+        const entry = { unit: label, count };
+        (currentSection === "units" ? units : groups).push(entry);
+      }
+    } else if (currentSection === "buildings") {
+      const level = parseInt(value.replace(/\D/g, ""), 10) || 0;
+      if (label) buildings.push({ building: label, level });
+    }
+  }
+
+  const hasData = Object.keys(raw_materials).length > 0
+    || units.length > 0 || groups.length > 0 || buildings.length > 0;
+  if (!hasData) return null;
+
+  return { raw_materials, units, groups, buildings };
+}
+
 function parseBattleReport() {
   const report = document.querySelector("div#fightreport");
   if (!report) {
@@ -146,6 +218,9 @@ function parseBattleReport() {
     });
   }
 
+  // ── Spy report (espionage results) ──────────────────────────────────────────────
+  const spyReport = parseSpyReport(report);
+
   // ── Title ──────────────────────────────────────────────────────────────────────────
   const h1    = report.querySelector("h1");
   const title = h1
@@ -159,19 +234,27 @@ function parseBattleReport() {
     return { error: "Could not parse attacker or defender from this report." };
   }
 
-  return {
+  const result = {
     title, date, luck, loyalty,
     attacker, defender, loot,
-    page_url:   window.location.href,
+    page_url:   typeof window !== "undefined" ? window.location.href : "",
     scraped_at: new Date().toISOString(),
   };
+  if (spyReport) result.spy_report = spyReport;
+  return result;
+}
+
+// ── Node/Jest export for testing ──────────────────────────────────────────────────────────────
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = { parseBattleReport, parseSpyReport };
 }
 
 // ── Message listener ───────────────────────────────────────────────────────────────────────
-
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  if (message.type !== "SCRAPE_WILDGUNS") return;
-  const result = parseBattleReport();
-  if (result.error) { sendResponse({ success: false, error: result.error }); return; }
-  sendResponse({ success: true, data: result });
-});
+if (typeof chrome !== "undefined" && chrome.runtime?.onMessage) {
+  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+    if (message.type !== "SCRAPE_WILDGUNS") return;
+    const result = parseBattleReport();
+    if (result.error) { sendResponse({ success: false, error: result.error }); return; }
+    sendResponse({ success: true, data: result });
+  });
+}

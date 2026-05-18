@@ -125,17 +125,23 @@ function parseUnitsTable() {
   };
 }
 
+// ── Node/Jest export for testing ──────────────────────────────────────────
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = { parseUnitsTable };
+}
+
 // ── Message listener ───────────────────────────────────────────────────────
+if (typeof chrome !== "undefined" && chrome.runtime?.onMessage) {
+  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+    if (message.type !== "SCRAPE_UNITS") return;
 
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  if (message.type !== "SCRAPE_UNITS") return;
+    const result = parseUnitsTable();
 
-  const result = parseUnitsTable();
+    if (result.error) {
+      sendResponse({ success: false, error: result.error });
+      return;
+    }
 
-  if (result.error) {
-    sendResponse({ success: false, error: result.error });
-    return;
-  }
-
-  sendResponse({ success: true, data: result });
-});
+    sendResponse({ success: true, data: result });
+  });
+}
