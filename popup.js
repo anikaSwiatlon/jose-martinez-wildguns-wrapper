@@ -79,16 +79,42 @@ async function sendToSupabase(table, payload, statusId, btnSend, btnRead) {
   });
 }
 
+// ── Feature toggles ─────────────────────────────────────────────────────────────────────────────────────
+
+const TOGGLE_DEFAULTS = { units: false, reports: true, market: true };
+const TOGGLEABLE_TABS = Object.keys(TOGGLE_DEFAULTS);
+
+function applyToggles(toggles) {
+  for (const name of TOGGLEABLE_TABS) {
+    const visible = toggles[name] ?? TOGGLE_DEFAULTS[name];
+    tabs[name].btn.classList.toggle("hidden", !visible);
+    document.getElementById(`toggle-${name}`).checked = visible;
+  }
+  const activeTab = Object.keys(tabs).find(k => tabs[k].panel.classList.contains("active"));
+  if (activeTab && tabs[activeTab].btn.classList.contains("hidden")) {
+    switchTab("settings");
+  }
+}
+
+function readTogglesFromUI() {
+  const toggles = {};
+  for (const name of TOGGLEABLE_TABS) {
+    toggles[name] = document.getElementById(`toggle-${name}`).checked;
+  }
+  return toggles;
+}
+
 // ── Load saved settings ──────────────────────────────────────────────────────────────────────────────────
 
 chrome.storage.local.get(
-  ["supabaseUrl", "supabaseAnonKey", "licenseKey", "marketOffers", "marketRuntime", "lastTab"],
-  ({ supabaseUrl, supabaseAnonKey, licenseKey, marketOffers, marketRuntime, lastTab }) => {
+  ["supabaseUrl", "supabaseAnonKey", "licenseKey", "marketOffers", "marketRuntime", "lastTab", "featureToggles"],
+  ({ supabaseUrl, supabaseAnonKey, licenseKey, marketOffers, marketRuntime, lastTab, featureToggles }) => {
     if (supabaseUrl)     document.getElementById("cfg-url").value     = supabaseUrl;
     if (supabaseAnonKey) document.getElementById("cfg-key").value     = supabaseAnonKey;
     if (licenseKey)      document.getElementById("cfg-license").value = licenseKey;
     renderOffersUI(marketOffers ?? DEFAULT_OFFERS);
     document.getElementById("cfg-runtime").value = marketRuntime ?? DEFAULT_RUNTIME;
+    applyToggles(featureToggles ?? TOGGLE_DEFAULTS);
     if (lastTab && tabs[lastTab] && !tabs[lastTab].btn.classList.contains("hidden")) {
       switchTab(lastTab);
     }
@@ -103,8 +129,10 @@ document.getElementById("btn-save").addEventListener("click", async () => {
   const url     = document.getElementById("cfg-url").value.trim().replace(/\/$/, "");
   const key     = document.getElementById("cfg-key").value.trim();
   const license = document.getElementById("cfg-license").value.trim();
+  const featureToggles = readTogglesFromUI();
   if (!url || !key) { setStatus("settings-status", "Fill in URL and anon key.", "error"); return; }
-  await chrome.storage.local.set({ supabaseUrl: url, supabaseAnonKey: key, licenseKey: license });
+  await chrome.storage.local.set({ supabaseUrl: url, supabaseAnonKey: key, licenseKey: license, featureToggles });
+  applyToggles(featureToggles);
   setStatus("settings-status", "Settings saved.", "success");
   checkLicense(url, license);
   setTimeout(() => setStatus("settings-status", ""), 2000);
@@ -202,6 +230,21 @@ function renderSide(label, cssClass, data) {
     </div>`;
 }
 
+function renderSpyPreview(spy) {
+  if (!spy) return "";
+  const res = spy.raw_materials;
+  const resLine = Object.entries(res).map(([k, v]) => `${k}: ${v}`).join(", ");
+  const bldgCount = spy.buildings.length;
+  const unitCount = spy.units.length + spy.groups.length;
+  return `
+    <div class="side-block">
+      <div class="side-label" style="color:#854F0B;">Spy report</div>
+      ${resLine ? `<div class="unit-row"><span>Resources</span><span class="count">${resLine}</span></div>` : ""}
+      ${unitCount > 0 ? `<div class="unit-row"><span>Units/Groups</span><span class="count">${unitCount} type(s)</span></div>` : ""}
+      ${bldgCount > 0 ? `<div class="unit-row"><span>Buildings</span><span class="count">${bldgCount} scanned</span></div>` : ""}
+    </div>`;
+}
+
 function renderReportsPreview(d) {
   wgPreview.innerHTML = `
     <div class="report-title">${d.title ?? "Battle report"}</div>
@@ -211,7 +254,8 @@ function renderReportsPreview(d) {
       ${d.loyalty ? `<span>Loyalty: ${d.loyalty}</span>` : ""}
     </div>
     ${renderSide("Attacker", "atk", d.attacker)}
-    ${renderSide("Defender", "def", d.defender)}`;
+    ${renderSide("Defender", "def", d.defender)}
+    ${renderSpyPreview(d.spy_report)}`;
   wgPreview.classList.add("visible");
 }
 
