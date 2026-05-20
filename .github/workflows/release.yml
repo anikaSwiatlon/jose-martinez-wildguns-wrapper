@@ -1,0 +1,65 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  release:
+    name: Build and publish release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout tag
+        uses: actions/checkout@v4
+
+      - name: Build extension
+        id: build
+        uses: ./.github/actions/build-extension
+
+      - name: Verify tag matches manifest version
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          MANIFEST_VERSION="${{ steps.build.outputs.version }}"
+          if [ "$TAG_VERSION" != "$MANIFEST_VERSION" ]; then
+            echo "Tag (${GITHUB_REF_NAME}) does not match manifest version (${MANIFEST_VERSION})"
+            echo "Expected tag: v${MANIFEST_VERSION}"
+            exit 1
+          fi
+          echo "Tag and manifest version match: v${MANIFEST_VERSION} ✓"
+
+      - name: Extract release notes from CHANGELOG.md
+        id: notes
+        run: |
+          NOTES_FILE="$RUNNER_TEMP/release-notes.md"
+          node scripts/extract-release-notes.mjs "${{ steps.build.outputs.version }}" > "$NOTES_FILE"
+          echo "notes-file=$NOTES_FILE" >> "$GITHUB_OUTPUT"
+          echo "--- notes ---"
+          cat "$NOTES_FILE"
+          echo
+          echo "--- end notes ---"
+
+      - name: Create GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            --title "Release ${GITHUB_REF_NAME}" \
+            --notes-file "${{ steps.notes.outputs.notes-file }}" \
+            "${{ steps.build.outputs.zip-name }}"
+
+      - name: Write job summary
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" << EOF
+          ## Release published
+
+          | Field    | Value |
+          |----------|-------|
+          | Tag      | \`${{ github.ref_name }}\` |
+          | Version  | \`${{ steps.build.outputs.version }}\` |
+          | Artifact | \`${{ steps.build.outputs.zip-name }}\` |
+
+          Release available at: https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}
+          EOF

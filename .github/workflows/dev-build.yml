@@ -1,0 +1,49 @@
+name: Dev build (internal)
+
+on:
+  pull_request:
+    branches: [dev-0-3]
+    types: [opened, synchronize, reopened]
+
+jobs:
+  dev-build:
+    name: Build dev artifact
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR head
+        uses: actions/checkout@v4
+
+      - name: Compute zip suffix
+        id: suffix
+        run: |
+          SHORT_SHA=$(echo "${{ github.event.pull_request.head.sha }}" | cut -c1-7)
+          echo "suffix=INTERNAL-pr-${{ github.event.pull_request.number }}-${SHORT_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Build extension
+        id: build
+        uses: ./.github/actions/build-extension
+        with:
+          zip-suffix: ${{ steps.suffix.outputs.suffix }}
+
+      - name: Upload dev-build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dev-build-pr-${{ github.event.pull_request.number }}-INTERNAL
+          path: ${{ steps.build.outputs.zip-name }}
+          retention-days: 7
+          if-no-files-found: error
+
+      - name: Write job summary
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" << EOF
+          ## INTERNAL dev build — NOT FOR RELEASE
+
+          | Field    | Value |
+          |----------|-------|
+          | PR       | #${{ github.event.pull_request.number }} |
+          | Commit   | \`${{ github.event.pull_request.head.sha }}\` |
+          | Artifact | \`${{ steps.build.outputs.zip-name }}\` |
+
+          This zip is an internal QA build for maintainers only. Do not distribute
+          to end users — they should always install from the latest GitHub Release.
+          EOF
