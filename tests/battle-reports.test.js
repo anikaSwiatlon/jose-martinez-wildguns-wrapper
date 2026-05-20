@@ -1,4 +1,17 @@
-const { parseBattleReport, parseSpyReport } = require("../features/battle-reports/content");
+const fs = require("fs");
+const path = require("path");
+const {
+  parseBattleReport,
+  parseSpyReport,
+  sanitizeReportDom,
+  captureReport,
+  extractReportId,
+} = require("../features/battle-reports/content");
+
+const FIXTURE_HTML = fs.readFileSync(
+  path.join(__dirname, "fixtures", "example_report.html"),
+  "utf8"
+);
 
 describe("parseBattleReport", () => {
   beforeEach(() => {
@@ -123,5 +136,120 @@ describe("parseSpyReport", () => {
 
   test("returns null for null input", () => {
     expect(parseSpyReport(null)).toBeNull();
+  });
+});
+
+// ── Sanitizer + capture against the real example_report fixture ──────────────────────────
+
+describe("sanitizeReportDom on real WildGuns fixture", () => {
+  beforeEach(() => { document.body.innerHTML = FIXTURE_HTML; });
+
+  test("strips every bis_skin_checked attribute", () => {
+    const root = document.querySelector("#fightreport");
+    expect(FIXTURE_HTML.match(/bis_skin_checked/g)?.length).toBeGreaterThan(100);
+    const out = sanitizeReportDom(root);
+    expect(out.outerHTML).not.toContain("bis_skin_checked");
+  });
+
+  test("keeps disabled unit slots for slot-by-slot comparability", () => {
+    const root = document.querySelector("#fightreport");
+    const out = sanitizeReportDom(root);
+    expect(out.querySelectorAll(".fr_unit.disabled").length).toBeGreaterThan(0);
+  });
+
+  test("rewrites group star src to data-level attribute", () => {
+    const root = document.querySelector("#fightreport");
+    const out = sanitizeReportDom(root);
+    const starImgs = out.querySelectorAll("img.fr_groupLevelImage");
+    expect(starImgs.length).toBeGreaterThan(0);
+    for (const img of starImgs) {
+      expect(img.getAttribute("src")).toBeNull();
+      const level = img.getAttribute("data-level");
+      expect(level).toMatch(/^\d+$/);
+    }
+  });
+
+  test("strips img src + title but keeps alt", () => {
+    const root = document.querySelector("#fightreport");
+    const out = sanitizeReportDom(root);
+    const imgs = out.querySelectorAll("img");
+    expect(imgs.length).toBeGreaterThan(0);
+    for (const img of imgs) {
+      expect(img.getAttribute("src")).toBeNull();
+      expect(img.getAttribute("title")).toBeNull();
+      // alt is the only signal carrier for unit/resource names
+      if (!img.classList.contains("rowNation")) {
+        expect(img.hasAttribute("alt")).toBe(true);
+      }
+    }
+  });
+
+  test("removes mailReportsPrimaryRight action panel if present", () => {
+    document.body.innerHTML = `
+      <div id="mailReportsPrimary">
+        <div id="fightreport"><h1>x</h1></div>
+        <div id="mailReportsPrimaryRight"><a class="buttonlike">Attack again</a></div>
+      </div>`;
+    const root = document.querySelector("#fightreport");
+    const out = sanitizeReportDom(root);
+    expect(out.querySelector("#mailReportsPrimaryRight")).toBeNull();
+    expect(out.querySelector(".buttonlike")).toBeNull();
+  });
+
+  test("returns null for null input (defensive)", () => {
+    expect(sanitizeReportDom(null)).toBeNull();
+  });
+});
+
+describe("extractReportId", () => {
+  test("pulls report_id from URL search params", () => {
+    expect(extractReportId(document, "https://x.com/?report_id=1744365")).toBe(1744365);
+  });
+
+  test("falls back to the favorites link in the DOM", () => {
+    document.body.innerHTML = `
+      <a href="/user.php?action=mail&report_id=999&insertIntoFavTargets=40">Fav</a>`;
+    expect(extractReportId(document, "https://x.com/no-query")).toBe(999);
+  });
+
+  test("returns null when neither URL nor DOM has it", () => {
+    document.body.innerHTML = "<div></div>";
+    expect(extractReportId(document, "https://x.com/")).toBeNull();
+  });
+});
+
+describe("captureReport on real WildGuns fixture", () => {
+  beforeEach(() => {
+    document.body.innerHTML = FIXTURE_HTML;
+    // jsdom defaults to "about:blank" — give it a report URL so extractReportId works
+    Object.defineProperty(window, "location", {
+      value: new URL("https://wildguns.gameforge.com/user.php?action=mail&report_id=1744365"),
+      writable: true,
+    });
+  });
+
+  test("returns extracted, sanitized dom_html, and meta", () => {
+    const result = captureReport();
+    expect(result.error).toBeUndefined();
+    expect(result.report_id).toBe(1744365);
+    expect(result.extracted.attacker.player).toBe("xWojci3chX");
+    expect(result.extracted.attacker.player_id).toBe(620);
+    expect(result.extracted.attacker.village_id).toBe(39298);
+    expect(result.extracted.defender.village_id).toBe(40946);
+    expect(result.dom_html).not.toContain("bis_skin_checked");
+    expect(result.dom_html).toContain("fr_unit");
+    expect(result.meta.page_url).toContain("report_id=1744365");
+    expect(typeof result.meta.scraped_at).toBe("string");
+  });
+
+  test("dom_html is materially smaller than the raw report", () => {
+    const result = captureReport();
+    expect(result.dom_html.length).toBeLessThan(FIXTURE_HTML.length * 0.85);
+  });
+
+  test("returns error when no #fightreport is on the page", () => {
+    document.body.innerHTML = "<div>nothing here</div>";
+    const result = captureReport();
+    expect(result.error).toMatch(/No battle report/);
   });
 });
