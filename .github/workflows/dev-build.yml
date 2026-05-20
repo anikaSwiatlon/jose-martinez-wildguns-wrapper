@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout PR head
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Compute zip suffix
         id: suffix
@@ -26,7 +26,7 @@ jobs:
           zip-suffix: ${{ steps.suffix.outputs.suffix }}
 
       - name: Upload dev-build artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: dev-build-pr-${{ github.event.pull_request.number }}-INTERNAL
           path: ${{ steps.build.outputs.zip-name }}
