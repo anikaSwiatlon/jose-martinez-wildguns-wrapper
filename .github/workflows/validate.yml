@@ -1,0 +1,38 @@
+name: Validate
+
+on:
+  pull_request:
+    branches: [main, dev-0-3]
+  push:
+    branches: [main]
+    paths-ignore:
+      - "docs/site/**"
+      - "CHANGELOG.md"
+      - "PRIVACY.md"
+      - "README.md"
+      - "LICENSE"
+
+jobs:
+  validate:
+    name: Validate extension
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Build extension (validation only)
+        uses: ./.github/actions/build-extension
+
+      - name: Write job summary
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" << EOF
+          ## Validation passed
+
+          | Field   | Value |
+          |---------|-------|
+          | Event   | \`${{ github.event_name }}\` |
+          | Ref     | \`${{ github.ref }}\` |
+          | Commit  | \`${{ github.sha }}\` |
+
+          Tests, manifest validation, web-ext lint, syntax checks all green.
+          EOF
