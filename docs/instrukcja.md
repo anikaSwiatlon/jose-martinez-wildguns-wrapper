@@ -11,9 +11,8 @@
 3. [Zakładka Reports — raporty bitewne](#zakładka-reports--raporty-bitewne)
 4. [Zakładka Market — oferty handlowe](#zakładka-market--oferty-handlowe)
 5. [Zakładka Settings — ustawienia](#zakładka-settings--ustawienia)
-6. [Zakładka Pro — odesłanie oddziałów](#zakładka-pro--odesłanie-oddziałów)
-7. [Konfiguracja Supabase](#konfiguracja-supabase)
-8. [Najczęstsze problemy](#najczęstsze-problemy)
+6. [Konfiguracja Supabase](#konfiguracja-supabase)
+7. [Najczęstsze problemy](#najczęstsze-problemy)
 
 ---
 
@@ -92,25 +91,14 @@ Pozwala automatycznie wystawiać oferty handlowe na rynku gry.
 
 ## Zakładka Settings — ustawienia
 
-Tutaj podajesz dane do połączenia z bazą danych Supabase i ewentualny klucz licencyjny Pro.
+Tutaj podajesz dane do połączenia z bazą danych Supabase.
 
 | Pole                     | Co wpisać                                              |
 | ------------------------ | ------------------------------------------------------ |
 | **Supabase project URL** | Adres projektu, np. `https://abcdef.supabase.co`       |
 | **Anon / public key**    | Klucz publiczny z panelu Supabase (zakładka API)       |
-| **License key**          | Klucz Pro w formacie `WG-XXXX-XXXX-XXXX` (opcjonalnie) |
 
-Po wpisaniu danych kliknij **Save settings**. Jeśli klucz licencyjny jest ważny, pojawi się dodatkowa zakładka **Pro**.
-
----
-
-## Zakładka Pro 
-
-> Zakładka Pro jest widoczna tylko po podaniu ważnego klucza licencyjnego.
-
-
----
-
+Po wpisaniu danych kliknij **Save settings**.
 
 ---
 
@@ -122,4 +110,3 @@ Po wpisaniu danych kliknij **Save settings**. Jeśli klucz licencyjny jest ważn
 | **Send to Supabase** zwraca błąd               | Sprawdź w zakładce Settings, czy URL i klucz Supabase są poprawne.                                                        |
 | **Send Market Offers** jest nieaktywny (szary) | Aktywna karta przeglądarki musi być stroną gry (wildungs.com lub wildguns.gameforge.com).                                 |
 | `userToken not found` w konsoli                | Musisz być zalogowany do gry — token jest dostępny tylko na zalogowanej stronie.                                          |
-| Zakładka **Pro** nie pojawia się               | Sprawdź klucz licencyjny w Settings i upewnij się, że Supabase URL jest poprawny.                                         |

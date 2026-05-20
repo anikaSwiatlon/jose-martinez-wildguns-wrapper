@@ -57,7 +57,6 @@
     .tab-btn.active-reports  { color: #e8a020; border-bottom-color: #e8a020; }
     .tab-btn.active-market   { color: #0ea5e9; border-bottom-color: #0ea5e9; }
     .tab-btn.active-settings { color: #555;    border-bottom-color: #555; }
-    .tab-btn.active-pro      { color: #7c3aed; border-bottom-color: #7c3aed; }
     .hidden { display: none !important; }
 
     /* ── Panels ── */
@@ -119,9 +118,6 @@
 
     .btn-market { background: #0ea5e9; color: #fff; }
     .btn-market:not(:disabled):hover { background: #0284c7; }
-
-    .btn-pro { background: #7c3aed; color: #fff; }
-    .btn-pro:not(:disabled):hover { background: #6d28d9; }
 
     .btn-row  { display: flex; gap: 8px; }
     .btn-dl   { flex: 1; background: #f0f0ee; color: #333; }
@@ -201,11 +197,6 @@
       width: 14px; height: 14px; accent-color: #555; cursor: pointer;
     }
 
-    /* ── Pro tab status ── */
-    #sendback-status { font-size: 12px; min-height: 16px; text-align: center; }
-    #sendback-status.loading { color: #b45309; }
-    #sendback-status.success { color: #1a7a4a; }
-    #sendback-status.error   { color: #b83232; }
   </style>
 </head>
 <body>
@@ -220,7 +211,6 @@
     <button class="tab-btn" id="tab-reports">Reports</button>
     <button class="tab-btn" id="tab-market">Market</button>
     <button class="tab-btn" id="tab-settings">Settings</button>
-    <button class="tab-btn hidden" id="tab-pro">Pro</button>
   </div>
 </header>
 
@@ -273,10 +263,6 @@
     <input id="cfg-key" type="password" placeholder="eyJ..." />
   </div>
   <div class="field">
-    <label>License key (Pro features)</label>
-    <input id="cfg-license" type="password" placeholder="WG-XXXX-XXXX-XXXX" />
-  </div>
-  <div class="field">
     <label>Visible tabs</label>
     <div class="toggle-group">
       <div class="toggle-row"><input type="checkbox" id="toggle-units"><label for="toggle-units">Units</label></div>
@@ -290,16 +276,6 @@
     Supabase credentials: Dashboard &rarr; Settings &rarr; API.<br>
     The anon key is safe here &mdash; RLS locks the table to INSERT only.
   </div>
-</div>
-
-<!-- ── Pro panel (hidden until valid license) ── -->
-<div class="panel" id="panel-pro">
-  <div class="field">
-    <label>Village IDs to send back (comma-separated)</label>
-    <textarea id="village-ids-input" rows="3" placeholder="40285, 38594, &hellip;"></textarea>
-  </div>
-  <p id="sendback-status"></p>
-  <button class="btn btn-pro" id="btn-sendback">Ode&#347;lij oddzia&#322;y</button>
 </div>
 
 <script src="popup.js"></script>

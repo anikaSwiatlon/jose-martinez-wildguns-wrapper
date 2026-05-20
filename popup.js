@@ -14,7 +14,6 @@ const tabs = {
   reports:  { btn: document.getElementById("tab-reports"),  panel: document.getElementById("panel-reports"),  activeClass: "active-reports" },
   market:   { btn: document.getElementById("tab-market"),   panel: document.getElementById("panel-market"),   activeClass: "active-market" },
   settings: { btn: document.getElementById("tab-settings"), panel: document.getElementById("panel-settings"), activeClass: "active-settings" },
-  pro:      { btn: document.getElementById("tab-pro"),      panel: document.getElementById("panel-pro"),      activeClass: "active-pro" },
 };
 
 function switchTab(name) {
@@ -107,18 +106,16 @@ function readTogglesFromUI() {
 // ── Load saved settings ──────────────────────────────────────────────────────────────────────────────────
 
 chrome.storage.local.get(
-  ["supabaseUrl", "supabaseAnonKey", "licenseKey", "marketOffers", "marketRuntime", "lastTab", "featureToggles"],
-  ({ supabaseUrl, supabaseAnonKey, licenseKey, marketOffers, marketRuntime, lastTab, featureToggles }) => {
-    if (supabaseUrl)     document.getElementById("cfg-url").value     = supabaseUrl;
-    if (supabaseAnonKey) document.getElementById("cfg-key").value     = supabaseAnonKey;
-    if (licenseKey)      document.getElementById("cfg-license").value = licenseKey;
+  ["supabaseUrl", "supabaseAnonKey", "marketOffers", "marketRuntime", "lastTab", "featureToggles"],
+  ({ supabaseUrl, supabaseAnonKey, marketOffers, marketRuntime, lastTab, featureToggles }) => {
+    if (supabaseUrl)     document.getElementById("cfg-url").value = supabaseUrl;
+    if (supabaseAnonKey) document.getElementById("cfg-key").value = supabaseAnonKey;
     renderOffersUI(marketOffers ?? DEFAULT_OFFERS);
     document.getElementById("cfg-runtime").value = marketRuntime ?? DEFAULT_RUNTIME;
     applyToggles(featureToggles ?? TOGGLE_DEFAULTS);
     if (lastTab && tabs[lastTab] && !tabs[lastTab].btn.classList.contains("hidden")) {
       switchTab(lastTab);
     }
-    checkLicense(supabaseUrl, licenseKey);
     checkActiveTab();
   }
 );
@@ -126,15 +123,13 @@ chrome.storage.local.get(
 // ── Save settings ──────────────────────────────────────────────────────────────────────────────────────
 
 document.getElementById("btn-save").addEventListener("click", async () => {
-  const url     = document.getElementById("cfg-url").value.trim().replace(/\/$/, "");
-  const key     = document.getElementById("cfg-key").value.trim();
-  const license = document.getElementById("cfg-license").value.trim();
+  const url = document.getElementById("cfg-url").value.trim().replace(/\/$/, "");
+  const key = document.getElementById("cfg-key").value.trim();
   const featureToggles = readTogglesFromUI();
   if (!url || !key) { setStatus("settings-status", "Fill in URL and anon key.", "error"); return; }
-  await chrome.storage.local.set({ supabaseUrl: url, supabaseAnonKey: key, licenseKey: license, featureToggles });
+  await chrome.storage.local.set({ supabaseUrl: url, supabaseAnonKey: key, featureToggles });
   applyToggles(featureToggles);
   setStatus("settings-status", "Settings saved.", "success");
-  checkLicense(url, license);
   setTimeout(() => setStatus("settings-status", ""), 2000);
 });
 
@@ -436,112 +431,3 @@ function runMarketOffers(offers, runtime) {
   });
 }
 
-// ── Pro tab (license-gated) ─────────────────────────────────────────────────────────────────────────────────────
-
-async function checkLicense(supabaseUrl, licenseKey) {
-  if (!supabaseUrl || !licenseKey) return;
-  try {
-    const res = await fetch(`${supabaseUrl}/functions/v1/license-gate`, {
-      method:  "POST",
-      headers: { "Content-Type": "application/json" },
-      body:    JSON.stringify({ licenseKey }),
-    });
-    if (!res.ok) return;
-    const body = (await res.text()).trim();
-    if (!body) return;
-    tabs.pro.btn.classList.remove("hidden");
-  } catch {
-    // Network error — Pro tab stays hidden
-  }
-}
-
-document.getElementById("btn-sendback").addEventListener("click", handleSendBack);
-
-async function handleSendBack() {
-  const input    = document.getElementById("village-ids-input");
-  const statusEl = document.getElementById("sendback-status");
-  const btn      = document.getElementById("btn-sendback");
-  const raw      = input.value.trim();
-
-  if (!raw) {
-    statusEl.textContent = "Enter at least one village ID.";
-    statusEl.className   = "error";
-    return;
-  }
-
-  const villageIds = raw.split(",").map(s => s.trim()).filter(Boolean);
-  statusEl.textContent = `Sending back for ${villageIds.length} village(s)…`;
-  statusEl.className   = "loading";
-  btn.disabled = true;
-
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  try {
-    const results = await chrome.scripting.executeScript({
-      target: { tabId: tab.id },
-      world:  "MAIN",
-      func:   sendBackSupportOnPage,
-      args:   [villageIds],
-    });
-    const result = results?.[0]?.result;
-    if (result?.success) {
-      statusEl.textContent = result.message ?? "Done.";
-      statusEl.className   = "success";
-    } else {
-      statusEl.textContent = result?.error ?? "Unknown error.";
-      statusEl.className   = "error";
-    }
-  } catch (e) {
-    statusEl.textContent = e.message;
-    statusEl.className   = "error";
-  } finally {
-    btn.disabled = false;
-  }
-}
-
-async function sendBackSupportOnPage(villageIds) {
-  if (typeof userToken === "undefined" || !userToken) {
-    return { success: false, error: "userToken not found on page." };
-  }
-
-  var origGoHome = window.goHome;
-  var origReload = window.location.reload.bind(window.location);
-  window.goHome          = function () {};
-  window.location.reload = function () {};
-
-  try {
-    for (var v = 0; v < villageIds.length; v++) {
-      var vid = String(villageIds[v]).trim();
-
-      var uf = document.getElementsByClassName("unitField_" + vid);
-      for (var i = 0; i < uf.length; i++) {
-        var link = document.getElementById("link_" + uf[i].id);
-        if (link) uf[i].value = link.name;
-      }
-
-      var sendstring = "&sendunitsType=back";
-      var formValues = document.getElementsByClassName("toJs " + vid);
-      for (var j = 0; j < formValues.length; j++) {
-        var f = formValues[j];
-        if (f.value && (f.type !== "checkbox" || f.checked)) {
-          sendstring += "&" + f.name + "=" + encodeURIComponent(f.value);
-        }
-      }
-
-      var url = "ajax_interface.php"
-        + "?ajax_action=sendBackSupport"
-        + "&whosetroops=other"
-        + sendstring
-        + "&isgoldmine=0"
-        + "&userToken=" + encodeURIComponent(userToken);
-
-      var resp = await fetch(url, { credentials: "include" });
-      if (!resp.ok) {
-        return { success: false, error: "HTTP " + resp.status + " for village " + vid };
-      }
-    }
-    return { success: true, message: "Sent back for " + villageIds.length + " village(s)." };
-  } finally {
-    window.goHome          = origGoHome;
-    window.location.reload = origReload;
-  }
-}
