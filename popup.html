@@ -192,6 +192,12 @@
       margin-top: 4px; padding-top: 4px;
       border-top: 1px solid #e5e4e0;
     }
+    .setting-warning {
+      font-size: 11px; color: #7a3a00; line-height: 1.5;
+      background: #fff8e6; border: 1px solid #f0c14b; border-radius: 6px;
+      padding: 8px 10px;
+    }
+    .setting-warning strong { color: #5a2a00; }
 
     /* ── Feature toggles ── */
     .toggle-group { display: flex; flex-direction: column; gap: 6px; }
@@ -259,6 +265,12 @@
 
 <!-- ── Settings panel ── -->
 <div class="panel" id="panel-settings">
+  <div class="setting-warning">
+    <strong>Heads up:</strong> never paste curl commands, session cookies, or
+    <code>userToken</code> values from your browser into chats, screenshots, or
+    third-party tools &mdash; they grant full access to your game account.
+    If you suspect one leaked, log out of WildGuns and back in to invalidate it.
+  </div>
   <div class="field">
     <label>Supabase project URL</label>
     <input id="cfg-url" type="text" placeholder="https://xxxx.supabase.co" />

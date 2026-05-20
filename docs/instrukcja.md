@@ -6,13 +6,42 @@
 
 ## Spis treści
 
-1. [Instalacja](#instalacja)
-2. [Zakładka Units — oddziały](#zakładka-units--oddziały)
-3. [Zakładka Reports — raporty bitewne](#zakładka-reports--raporty-bitewne)
-4. [Zakładka Market — oferty handlowe](#zakładka-market--oferty-handlowe)
-5. [Zakładka Settings — ustawienia](#zakładka-settings--ustawienia)
-6. [Konfiguracja Supabase](#konfiguracja-supabase)
-7. [Najczęstsze problemy](#najczęstsze-problemy)
+1. [Bezpieczeństwo — co NIGDY nie wklejaj](#bezpieczeństwo--co-nigdy-nie-wklejaj)
+2. [Instalacja](#instalacja)
+3. [Zakładka Units — oddziały](#zakładka-units--oddziały)
+4. [Zakładka Reports — raporty bitewne](#zakładka-reports--raporty-bitewne)
+5. [Zakładka Market — oferty handlowe](#zakładka-market--oferty-handlowe)
+6. [Zakładka Settings — ustawienia](#zakładka-settings--ustawienia)
+7. [Konfiguracja Supabase](#konfiguracja-supabase)
+8. [Najczęstsze problemy](#najczęstsze-problemy)
+
+---
+
+## Bezpieczeństwo — co NIGDY nie wklejaj
+
+> ⚠️ **Ważne, przeczytaj zanim zaczniesz korzystać z rozszerzenia.**
+
+Podczas grania w WildGuns Twoja przeglądarka przechowuje **token sesji**
+(`userToken`), **ciasteczka logowania** i czasem pełne polecenia `curl` z
+poziomu narzędzi deweloperskich. **Każda z tych rzeczy daje pełen dostęp do
+Twojego konta** — kto je zdobędzie, ten może wysyłać surowce, atakować, czytać
+raporty, zmieniać ustawienia konta.
+
+**Nigdy nie wklejaj tych wartości:**
+
+- w czatach (Discord, WhatsApp, kanały gildii itp.),
+- na zrzutach ekranu publikowanych w internecie,
+- w narzędziach trzecich (skryptach, generatorach, „pomocnikach” z forów),
+- w polach tego rozszerzenia, które o nie nie proszą.
+
+Rozszerzenie odczytuje `userToken` samodzielnie z zalogowanej strony gry —
+**nigdy nie musisz wprowadzać go ręcznie**. Jedyne dane, jakie wpisujesz, to
+adres URL projektu Supabase i klucz publiczny (`anon key`) — oba są
+przewidziane do udostępniania klientowi i nie dają dostępu do Twojego konta
+w grze.
+
+Jeśli podejrzewasz, że Twój token wyciekł: **wyloguj się z gry i zaloguj
+ponownie** — to unieważni stary token.
 
 ---
 
