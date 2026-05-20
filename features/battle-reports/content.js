@@ -26,70 +26,85 @@
 // for raw materials, units, groups, and buildings — identified by Polish headers.
 
 const RESOURCE_MAP = {
-  "drewno": "wood", "glina": "brick", "ruda": "ore",
+  // Polish alt-text variants used by the live game
+  "drewno": "wood",
+  "glina": "brick",
+  "ruda": "ore", "żelazo": "ore", "zelazo": "ore",
   "żywność": "food", "zywnosc": "food",
+  // English passthrough so synthetic test fixtures still work
+  "wood": "wood", "brick": "brick", "ore": "ore", "food": "food",
 };
 
 function parseSpyReport(reportDiv) {
   if (!reportDiv) return null;
 
-  const tables = reportDiv.querySelectorAll("table");
-  let spyTable = null;
-  for (const t of tables) {
-    if (t.classList.contains("fr_table")) continue;
-    if (t.id === "fr_header_table") continue;
-    const text = t.textContent.toLowerCase();
-    if (text.includes("szpiegow") || text.includes("szpieg") || text.includes("surowe materia")) {
-      spyTable = t;
-      break;
-    }
-  }
+  // Spy table has class="fr_table" (same as loot); discriminate by content.
+  // Real game layout (one row per section, data in the same row):
+  //   <tr><th colspan="5">Wyniki szpiegowania</th></tr>
+  //   <tr><th>Surowe materiały</th><td><img alt="Drewno">N</td><td><img alt="Glina">N</td>…</tr>
+  //   <tr><th>Jednostki</th>      <td colspan="4">…<div class="singleUnit">…</div>…</td></tr>
+  //   <tr><th>Grupy</th>          <td colspan="4">…<div class="singleUnit groupUnit">…</td></tr>
+  //   <tr><th>Budynek</th>        <td colspan="4">…<div class="spyDataBuilding">…</td></tr>
+  const spyTable = Array.from(reportDiv.querySelectorAll("table")).find(t => {
+    if (t.id === "fr_header_table") return false;
+    return t.textContent.toLowerCase().includes("wyniki szpieg");
+  });
   if (!spyTable) return null;
 
-  const rows = Array.from(spyTable.querySelectorAll("tr"));
   const raw_materials = {};
   const units = [];
   const groups = [];
   const buildings = [];
 
-  let currentSection = null;
+  for (const row of spyTable.querySelectorAll("tr")) {
+    const header = row.querySelector("th");
+    if (!header) continue;
+    const hText = header.textContent.trim().toLowerCase();
 
-  for (const row of rows) {
-    const headerCell = row.querySelector("th, td[colspan]");
-    if (headerCell) {
-      const hText = headerCell.textContent.trim().toLowerCase();
-      if (hText.includes("surowe materia")) { currentSection = "resources"; continue; }
-      if (hText.includes("jednostk"))       { currentSection = "units";     continue; }
-      if (hText.includes("grup"))           { currentSection = "groups";    continue; }
-      if (hText.includes("budyn"))          { currentSection = "buildings"; continue; }
+    if (hText.startsWith("surowe materia")) {
+      row.querySelectorAll("td").forEach(td => {
+        const img = td.querySelector("img");
+        const alt = img?.getAttribute("alt")?.toLowerCase().trim() || "";
+        const key = RESOURCE_MAP[alt] || RESOURCE_MAP[alt.replace(/[żź]/g, "z")];
+        if (!key) return;
+        const val = parseInt(td.textContent.replace(/\D/g, ""), 10);
+        if (!isNaN(val)) raw_materials[key] = val;
+      });
     }
-
-    const cells = row.querySelectorAll("td");
-    if (cells.length < 2) continue;
-
-    const label = cells[0].textContent.trim();
-    const value = cells[1].textContent.trim();
-
-    if (currentSection === "resources") {
-      const key = RESOURCE_MAP[label.toLowerCase()];
-      if (key) raw_materials[key] = parseInt(value.replace(/\D/g, ""), 10) || 0;
-    } else if (currentSection === "units" || currentSection === "groups") {
-      const count = parseInt(value.replace(/\D/g, ""), 10) || 0;
-      if (label && count > 0) {
-        const entry = { unit: label, count };
-        (currentSection === "units" ? units : groups).push(entry);
-      }
-    } else if (currentSection === "buildings") {
-      const level = parseInt(value.replace(/\D/g, ""), 10) || 0;
-      if (label) buildings.push({ building: label, level });
+    else if (hText.startsWith("jednostk")) {
+      row.querySelectorAll("div.singleUnit:not(.groupUnit)").forEach(div => {
+        const img = div.querySelector("img:not(.groupLevel)");
+        const name = img?.getAttribute("title")?.trim() || img?.getAttribute("alt")?.trim();
+        const count = parseInt(div.querySelector(".count")?.textContent.replace(/\D/g, ""), 10) || 0;
+        if (name && count > 0) units.push({ unit: name, count });
+      });
+    }
+    else if (hText.startsWith("grup")) {
+      row.querySelectorAll("div.singleUnit.groupUnit").forEach(div => {
+        const img = div.querySelector("img:not(.groupLevel)");
+        const name = img?.getAttribute("title")?.trim() || img?.getAttribute("alt")?.trim();
+        const star = div.querySelector("img.groupLevel");
+        const starSrc = star?.getAttribute("src") || star?.getAttribute("alt") || "";
+        const lvlMatch = starSrc.match(/star_(\d+)/);
+        const group_level = lvlMatch ? parseInt(lvlMatch[1], 10) : null;
+        const count = parseInt(div.querySelector(".count")?.textContent.replace(/\D/g, ""), 10) || 0;
+        if (name && count > 0) groups.push({ unit: name, count, group_level });
+      });
+    }
+    else if (hText.startsWith("budyn")) {
+      row.querySelectorAll("div.spyDataBuilding").forEach(div => {
+        const img = div.querySelector("img");
+        const name = img?.getAttribute("title")?.trim() || img?.getAttribute("alt")?.trim();
+        const text = div.textContent.trim();
+        const lvlMatch = text.match(/(\d+)/);
+        if (name && lvlMatch) buildings.push({ building: name, level: parseInt(lvlMatch[1], 10) });
+      });
     }
   }
 
   const hasData = Object.keys(raw_materials).length > 0
     || units.length > 0 || groups.length > 0 || buildings.length > 0;
-  if (!hasData) return null;
-
-  return { raw_materials, units, groups, buildings };
+  return hasData ? { raw_materials, units, groups, buildings } : null;
 }
 
 function parseBattleReport() {
@@ -200,16 +215,25 @@ function parseBattleReport() {
   if (defender) defender.units = parseUnits(nextFightreportUnits(defenderH2));
 
   // ── Loot ───────────────────────────────────────────────────────────────────────────
+  // The spy table also has class="fr_table"; identify the loot table by its
+  // "Łup" header. The loot row in the live game packs the <th>Łup</th> and
+  // every resource <td> into one <tr>, so we just grab that tr and iterate
+  // td cells (the th is skipped automatically by td selector).
   const loot = {};
-  const lootRow = report.querySelector("table.fr_table tr");
+  const lootTable = Array.from(report.querySelectorAll("table.fr_table")).find(t => {
+    const th = t.querySelector("th");
+    return th && th.textContent.trim().toLowerCase().startsWith("łup");
+  });
+  const lootRow = lootTable?.querySelector("tr");
   if (lootRow) {
     lootRow.querySelectorAll("td").forEach(td => {
       const img = td.querySelector("img");
       if (img) {
-        const res = img.getAttribute("alt")?.trim();
-        if (res) loot[res] = parseInt(td.textContent.trim(), 10) || 0;
+        const altKey = img.getAttribute("alt")?.toLowerCase().trim() || "";
+        const key = RESOURCE_MAP[altKey] || RESOURCE_MAP[altKey.replace(/[żź]/g, "z")];
+        if (key) loot[key] = parseInt(td.textContent.replace(/\D/g, ""), 10) || 0;
       } else {
-        const parts = td.textContent.trim().split("/").map(s => parseInt(s.trim(), 10));
+        const parts = td.textContent.trim().split("/").map(s => parseInt(s.trim().replace(/\D/g, ""), 10));
         if (parts.length === 2 && !isNaN(parts[0])) {
           loot.carried = parts[0];
           loot.capacity = parts[1];
