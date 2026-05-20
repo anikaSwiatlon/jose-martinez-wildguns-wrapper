@@ -116,6 +116,38 @@ Pozwala automatycznie wystawiać oferty handlowe na rynku gry.
 
 > Konfiguracja ofert jest zapisywana automatycznie przy każdym wysłaniu.
 
+### Wysyłanie surowców po współrzędnych
+
+W tej samej zakładce, pod sekcją ofert handlowych, znajduje się druga sekcja
+**Send resources by coordinates** — szybki transport surowców do dowolnej
+wioski (sojuszniczej lub własnej), bez konieczności przechodzenia przez
+ekran rynku w grze.
+
+**Tabela jednorazowych transportów:**
+
+| Kolumna | Co wpisać |
+| ------- | --------- |
+| **X\|Y** | Współrzędne celu, np. `500\|500` |
+| **Wood / Brick / Ore / Food** | Ilości poszczególnych surowców (0 jeśli nie wysyłasz) |
+| **✓/✗** | Pole statusu — po wysłaniu pokazuje wynik dla każdego wiersza |
+| **×** | Usuwa wiersz |
+
+- **+ Add row** — dodaje pusty wiersz.
+- **Paste** — wkleja wiersze ze schowka (TSV/CSV: jeden transport na linię, np. `500|500 1000 500 0 250`).
+- **Clear** — czyści całą tabelę.
+- **Send transports** — wysyła wszystkie poprawnie wypełnione wiersze równolegle (do 4 transportów naraz).
+
+**Zapisane presety (max 10):**
+
+- Wypełnij wiersz w tabeli i kliknij **Save preset** — wpisz nazwę i preset zapisze się na stałe.
+- Każdy preset wyświetla się jako wiersz nad tabelą z trzema przyciskami:
+  - **↗** — wysyła ten transport jednym kliknięciem.
+  - **+** — wczytuje wartości do nowego wiersza w tabeli (do edycji).
+  - **×** — usuwa preset.
+- Po przekroczeniu limitu 10 najstarszy preset zostanie automatycznie usunięty (wraz z komunikatem w pasku statusu).
+
+> Tabela startuje z jednym pustym wierszem — można od razu wkleić dane lub kliknąć **+ Add row**.
+
 ---
 
 ## Zakładka Settings — ustawienia

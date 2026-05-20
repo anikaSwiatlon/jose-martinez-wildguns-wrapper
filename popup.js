@@ -431,3 +431,349 @@ function runMarketOffers(offers, runtime) {
   });
 }
 
+
+// ── Send resources by coordinates (Market tab sub-section) ──────────────────────────────
+//
+// Two input modes share a single "Send transports" button:
+//   1. Saved presets — quick one-click recurring transports (max 10, LRU eviction).
+//   2. Ad-hoc table  — one row per (X|Y, wood, brick, ore, food) tuple.
+//
+// Both flows submit through the same content-script function
+// (sendTransportsOnPage) which the page-injected resource-transfer module
+// dispatches to the requestMarketTransport endpoint.
+
+const { addPresetWithCap, removePreset, validatePreset } = self.presetsStore;
+
+const transportsListEl  = document.getElementById("transports-list");
+const presetsListEl     = document.getElementById("presets-list");
+const btnAddTransport   = document.getElementById("btn-add-transport");
+const btnPasteTransp    = document.getElementById("btn-paste-transports");
+const btnClearTransp    = document.getElementById("btn-clear-transports");
+const btnSendTransp     = document.getElementById("btn-send-transports");
+
+let presetsCache = [];
+
+// ── Ad-hoc table ────────────────────────────────────────────────────────────────────────
+
+function addTransportRow(preset) {
+  const row = document.createElement("div");
+  row.className = "transport-row";
+  const coords = preset ? `${preset.targetX}|${preset.targetY}` : "";
+  row.innerHTML = `
+    <input type="text"   class="t-coords" placeholder="500|500" value="${coords}">
+    <input type="number" class="t-wood"   min="0" value="${preset?.amountWood  ?? 0}">
+    <input type="number" class="t-brick"  min="0" value="${preset?.amountBrick ?? 0}">
+    <input type="number" class="t-ore"    min="0" value="${preset?.amountOre   ?? 0}">
+    <input type="number" class="t-food"   min="0" value="${preset?.amountFood  ?? 0}">
+    <span class="transport-status-cell">·</span>
+    <button class="btn-remove-transport" title="Remove row">×</button>`;
+  row.querySelector(".btn-remove-transport").addEventListener("click", () => {
+    row.remove();
+    updateSendTransportsState();
+  });
+  row.querySelectorAll("input").forEach(input => input.addEventListener("input", updateSendTransportsState));
+  transportsListEl.appendChild(row);
+  updateSendTransportsState();
+  return row;
+}
+
+function readTransportRows() {
+  const rows = transportsListEl.querySelectorAll(".transport-row");
+  return Array.from(rows).map(row => {
+    const coordsInput = row.querySelector(".t-coords");
+    const parsed = (coordsInput.value.trim().match(/^(\d+)\s*\|\s*(\d+)$/));
+    return {
+      row,
+      coordsInput,
+      targetX:     parsed ? parseInt(parsed[1], 10) : NaN,
+      targetY:     parsed ? parseInt(parsed[2], 10) : NaN,
+      amountWood:  parseInt(row.querySelector(".t-wood").value,  10) || 0,
+      amountBrick: parseInt(row.querySelector(".t-brick").value, 10) || 0,
+      amountOre:   parseInt(row.querySelector(".t-ore").value,   10) || 0,
+      amountFood:  parseInt(row.querySelector(".t-food").value,  10) || 0,
+    };
+  });
+}
+
+function transportIsValid(t) {
+  if (!Number.isInteger(t.targetX) || !Number.isInteger(t.targetY)) return false;
+  const total = t.amountWood + t.amountBrick + t.amountOre + t.amountFood;
+  return total > 0;
+}
+
+function updateSendTransportsState() {
+  const rows = readTransportRows();
+  const anyValid = rows.some(transportIsValid);
+  // Mark invalid coord cells (only if the user typed something — empty rows stay neutral)
+  for (const r of rows) {
+    const empty = r.coordsInput.value.trim() === "";
+    const invalid = !empty && (!Number.isInteger(r.targetX) || !Number.isInteger(r.targetY));
+    r.coordsInput.classList.toggle("invalid", invalid);
+  }
+  btnSendTransp.disabled = !anyValid || btnSendTransp.dataset.busy === "1";
+}
+
+btnAddTransport.addEventListener("click", () => addTransportRow());
+
+btnClearTransp.addEventListener("click", () => {
+  transportsListEl.innerHTML = "";
+  updateSendTransportsState();
+});
+
+btnPasteTransp.addEventListener("click", async () => {
+  try {
+    const text = await navigator.clipboard.readText();
+    const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    if (!lines.length) {
+      setStatus("transport-status", "Clipboard is empty.", "error");
+      return;
+    }
+    let added = 0;
+    for (const line of lines) {
+      const parts = line.split(/[\s,;\t]+/).filter(Boolean);
+      if (parts.length < 2) continue;
+      const coordMatch = parts[0].match(/^(\d+)\s*\|\s*(\d+)$/);
+      if (!coordMatch) continue;
+      addTransportRow({
+        targetX:     parseInt(coordMatch[1], 10),
+        targetY:     parseInt(coordMatch[2], 10),
+        amountWood:  parseInt(parts[1], 10) || 0,
+        amountBrick: parseInt(parts[2], 10) || 0,
+        amountOre:   parseInt(parts[3], 10) || 0,
+        amountFood:  parseInt(parts[4], 10) || 0,
+      });
+      added++;
+    }
+    setStatus("transport-status", `Pasted ${added} row(s).`, added > 0 ? "success" : "error");
+    if (added > 0) setTimeout(() => setStatus("transport-status", ""), 2000);
+  } catch (e) {
+    setStatus("transport-status", "Could not read clipboard: " + e.message, "error");
+  }
+});
+
+// ── Send (ad-hoc table) ─────────────────────────────────────────────────────────────────
+
+async function sendTransportPayload(transports) {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  const isGame = tab?.url && (tab.url.includes("wildungs.com") || tab.url.includes("wildguns.gameforge.com"));
+  if (!isGame) {
+    throw new Error("Active tab must be the game.");
+  }
+  const [{ result } = {}] = await chrome.scripting.executeScript({
+    target: { tabId: tab.id },
+    world:  "MAIN",
+    func:   sendTransportsOnPageInjected,
+    args:   [transports],
+  });
+  return result;
+}
+
+btnSendTransp.addEventListener("click", async () => {
+  const rows = readTransportRows();
+  const valid = rows.filter(transportIsValid);
+  if (!valid.length) {
+    setStatus("transport-status", "Fill at least one row with coords + amount.", "error");
+    return;
+  }
+  btnSendTransp.dataset.busy = "1";
+  btnSendTransp.disabled = true;
+  setDot("loading");
+  setStatus("transport-status", `Sending ${valid.length} transport(s)…`);
+  // Mark every selected row busy
+  for (const r of valid) r.row.querySelector(".transport-status-cell").className = "transport-status-cell busy";
+
+  try {
+    const payload = valid.map(r => ({
+      targetX: r.targetX, targetY: r.targetY,
+      amountWood: r.amountWood, amountBrick: r.amountBrick,
+      amountOre:  r.amountOre,  amountFood:  r.amountFood,
+    }));
+    const result = await sendTransportPayload(payload);
+    if (!result?.ok) {
+      throw new Error(result?.error ?? "Page driver returned no result.");
+    }
+    let succeeded = 0, failed = 0;
+    result.results.forEach((r, i) => {
+      const cell = valid[i].row.querySelector(".transport-status-cell");
+      if (r?.status === "fulfilled" && r.value?.ok) {
+        cell.className = "transport-status-cell ok"; cell.textContent = "✓"; cell.title = "Sent";
+        succeeded++;
+      } else {
+        cell.className = "transport-status-cell err"; cell.textContent = "✗";
+        cell.title = (r?.value?.error ?? r?.reason?.message ?? "Failed").toString();
+        failed++;
+      }
+    });
+    setStatus("transport-status", `${succeeded} sent, ${failed} failed.`, failed ? "error" : "success");
+    setDot(failed ? "error" : "ready");
+  } catch (e) {
+    setStatus("transport-status", "Failed: " + e.message, "error");
+    setDot("error");
+    for (const r of valid) {
+      const cell = r.row.querySelector(".transport-status-cell");
+      cell.className = "transport-status-cell err"; cell.textContent = "✗"; cell.title = e.message;
+    }
+  } finally {
+    btnSendTransp.dataset.busy = "";
+    updateSendTransportsState();
+  }
+});
+
+// Mirror of features/resource-transfer/content.js' sendTransportsOnPage, kept
+// inline because chrome.scripting.executeScript with `func:` can only
+// serialise a single function body — it cannot pull in other content scripts.
+function sendTransportsOnPageInjected(transports) {
+  if (typeof userToken === "undefined" || !userToken) {
+    return { ok: false, error: "userToken not found on page. Are you logged into the game?" };
+  }
+  var origin = window.location.origin;
+
+  function buildUrl(t) {
+    var p = new URLSearchParams({
+      ajax_action: "requestMarketTransport",
+      amountWood:  String(t.amountWood),
+      amountBrick: String(t.amountBrick),
+      amountOre:   String(t.amountOre),
+      amountFood:  String(t.amountFood),
+      targetX:     String(t.targetX),
+      targetY:     String(t.targetY),
+      userToken:   String(userToken),
+    });
+    return origin + "/ajax_interface.php?" + p.toString();
+  }
+
+  function sendOne(t) {
+    return fetch(buildUrl(t), {
+      method: "GET",
+      credentials: "include",
+      headers: { "x-requested-with": "XMLHttpRequest", "x-prototype-version": "1.7.3" },
+    }).then(function(res) {
+      if (!res.ok) return { ok: false, status: res.status, error: "HTTP " + res.status };
+      return res.text().then(function(body) {
+        var lower = body.toLowerCase();
+        if (lower.includes("error") && !lower.includes("\"error\":null")) {
+          return { ok: false, status: res.status, error: body.slice(0, 200) };
+        }
+        return { ok: true, status: res.status };
+      });
+    });
+  }
+
+  var cap = 4;
+  var next = 0;
+  var results = new Array(transports.length);
+  function runOne() {
+    var i = next++;
+    if (i >= transports.length) return Promise.resolve();
+    return sendOne(transports[i])
+      .then(function(r)  { results[i] = { status: "fulfilled", value: r }; })
+      .catch(function(e) { results[i] = { status: "rejected",  reason: { message: String(e && e.message || e) } }; })
+      .then(runOne);
+  }
+  var workers = [];
+  for (var w = 0; w < Math.min(cap, transports.length); w++) workers.push(runOne());
+  return Promise.all(workers).then(function() { return { ok: true, results: results }; });
+}
+
+// ── Saved presets ───────────────────────────────────────────────────────────────────────
+
+function renderPresets() {
+  presetsListEl.innerHTML = "";
+  if (!presetsCache.length) return;
+  for (const p of presetsCache) {
+    const row = document.createElement("div");
+    row.className = "preset-row";
+    row.innerHTML = `
+      <div>
+        <div class="preset-name"></div>
+        <div class="preset-meta">${p.targetX}|${p.targetY} · ${p.amountWood}/${p.amountBrick}/${p.amountOre}/${p.amountFood}</div>
+      </div>
+      <button class="btn-preset-send"   title="Send this preset">↗</button>
+      <button class="btn-preset-load"   title="Load into ad-hoc row">+</button>
+      <button class="btn-preset-delete" title="Delete preset">×</button>`;
+    row.querySelector(".preset-name").textContent = p.name; // safe: avoids HTML injection
+    row.querySelector(".btn-preset-send").addEventListener("click", () => sendPreset(p));
+    row.querySelector(".btn-preset-load").addEventListener("click", () => addTransportRow(p));
+    row.querySelector(".btn-preset-delete").addEventListener("click", () => deletePreset(p.id));
+    presetsListEl.appendChild(row);
+  }
+}
+
+async function loadPresetsFromStorage() {
+  const { marketPresets } = await chrome.storage.local.get(["marketPresets"]);
+  presetsCache = Array.isArray(marketPresets) ? marketPresets : [];
+  renderPresets();
+}
+
+async function sendPreset(p) {
+  setDot("loading");
+  setStatus("transport-status", `Sending preset "${p.name}"…`);
+  try {
+    const result = await sendTransportPayload([{
+      targetX: p.targetX, targetY: p.targetY,
+      amountWood: p.amountWood, amountBrick: p.amountBrick,
+      amountOre:  p.amountOre,  amountFood:  p.amountFood,
+    }]);
+    const ok = result?.ok && result.results[0]?.status === "fulfilled" && result.results[0].value?.ok;
+    setStatus("transport-status", ok ? `Preset "${p.name}" sent.` : `Preset "${p.name}" failed.`, ok ? "success" : "error");
+    setDot(ok ? "ready" : "error");
+  } catch (e) {
+    setStatus("transport-status", "Failed: " + e.message, "error");
+    setDot("error");
+  }
+}
+
+async function deletePreset(id) {
+  presetsCache = removePreset(presetsCache, id);
+  await chrome.storage.local.set({ marketPresets: presetsCache });
+  renderPresets();
+}
+
+// "Save as preset" — promotes the FIRST valid ad-hoc row into a new preset.
+// (We don't add a per-row save button to keep the table compact; instead the
+// user fills a row and uses the Save flow via a name prompt.)
+async function savePresetFromFirstRow() {
+  const rows = readTransportRows();
+  const first = rows.find(transportIsValid);
+  if (!first) {
+    setStatus("transport-status", "Fill a row with coords + amounts first.", "error");
+    return;
+  }
+  const name = window.prompt("Name this preset:", `${first.targetX}|${first.targetY}`);
+  if (!name) return;
+  try {
+    const { presets, dropped } = addPresetWithCap(presetsCache, {
+      name,
+      targetX: first.targetX, targetY: first.targetY,
+      amountWood:  first.amountWood,  amountBrick: first.amountBrick,
+      amountOre:   first.amountOre,   amountFood:  first.amountFood,
+    });
+    presetsCache = presets;
+    await chrome.storage.local.set({ marketPresets: presetsCache });
+    renderPresets();
+    if (dropped) {
+      setStatus("transport-status", `Saved. Oldest preset "${dropped.name}" was evicted.`, "success");
+    } else {
+      setStatus("transport-status", `Saved preset "${name}".`, "success");
+    }
+    setTimeout(() => setStatus("transport-status", ""), 2500);
+  } catch (e) {
+    setStatus("transport-status", "Save failed: " + e.message, "error");
+  }
+}
+
+// Expose Save-preset on the existing "Paste" row (long-press / shift-click)
+// would be over-engineering; add a dedicated trigger in the table controls.
+{
+  const controls = document.querySelector(".transport-controls");
+  const saveBtn = document.createElement("button");
+  saveBtn.className = "btn-add-offer";
+  saveBtn.textContent = "Save preset";
+  saveBtn.title = "Save the first valid row as a named preset (max 10).";
+  saveBtn.addEventListener("click", savePresetFromFirstRow);
+  controls.appendChild(saveBtn);
+}
+
+// Kick off
+loadPresetsFromStorage();
+addTransportRow(); // start with one empty row so the user can paste/edit immediately

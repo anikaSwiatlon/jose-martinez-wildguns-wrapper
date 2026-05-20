@@ -179,6 +179,74 @@
     }
     .btn-add-offer:hover { border-color: #0ea5e9; color: #0ea5e9; }
 
+    /* ── Transport (send by coords) section ── */
+    .market-section-label {
+      font-size: 10px; font-weight: 600; color: #888;
+      text-transform: uppercase; letter-spacing: .06em;
+      margin-top: 6px; padding-top: 8px;
+      border-top: 1px solid #e5e4e0;
+    }
+    #presets-list, #transports-list {
+      display: flex; flex-direction: column; gap: 6px;
+    }
+    .transport-col-headers {
+      display: grid;
+      grid-template-columns: 64px repeat(4, 1fr) 24px 22px;
+      gap: 4px;
+    }
+    .transport-col-headers span { font-size: 10px; color: #aaa; text-align: center; }
+    .transport-row {
+      display: grid;
+      grid-template-columns: 64px repeat(4, 1fr) 24px 22px;
+      gap: 4px;
+      align-items: center;
+    }
+    .transport-row input[type="text"], .transport-row input[type="number"] {
+      width: 100%; padding: 5px 4px; border: 1px solid #ddd;
+      border-radius: 5px; font-size: 11px; background: #fafaf9;
+      font-family: inherit; text-align: center;
+    }
+    .transport-row input:focus { outline: none; border-color: #888; }
+    .transport-row input.invalid { border-color: #b83232; background: #fff0f0; }
+    .transport-status-cell {
+      font-size: 13px; text-align: center; color: #aaa; line-height: 1;
+    }
+    .transport-status-cell.ok    { color: #1a7a4a; }
+    .transport-status-cell.err   { color: #b83232; }
+    .transport-status-cell.busy  { color: #f59e0b; animation: pulse .8s ease-in-out infinite alternate; }
+    .btn-remove-transport, .btn-save-preset-inline {
+      background: none; border: none; color: #ccc; font-size: 14px;
+      cursor: pointer; line-height: 1; padding: 0;
+    }
+    .btn-remove-transport:hover { color: #c0392b; }
+    .btn-save-preset-inline:hover { color: #0ea5e9; }
+    .transport-controls { display: flex; gap: 6px; }
+    .transport-controls .btn-add-offer { font-size: 11px; }
+    .preset-row {
+      display: grid;
+      grid-template-columns: 1fr 28px 28px 28px;
+      gap: 4px;
+      align-items: center;
+      padding: 4px 6px;
+      background: #fff;
+      border: 1px solid #e5e4e0;
+      border-radius: 6px;
+    }
+    .preset-row .preset-name {
+      font-size: 12px; color: #444; font-weight: 500;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .preset-row .preset-meta {
+      font-size: 10px; color: #999; font-family: "SF Mono", "Fira Code", monospace;
+    }
+    .preset-row button {
+      background: none; border: none; cursor: pointer; padding: 4px;
+      font-size: 13px; color: #888; line-height: 1; border-radius: 4px;
+    }
+    .preset-row button:hover { background: #f0f0ee; color: #1a1a1a; }
+    .preset-row button.btn-preset-send { color: #0ea5e9; }
+    .preset-row button.btn-preset-delete:hover { color: #c0392b; }
+
     .btn-save { background: #f0f0ee; color: #333; font-size: 12px; padding: 8px; }
     .btn-save:hover { background: #e5e4e0; }
     .setting-note {
@@ -256,6 +324,22 @@
   </div>
   <p class="status" id="market-status"></p>
   <button class="btn btn-market" id="btn-market" disabled>Send Market Offers</button>
+
+  <!-- ── Send resources by coordinates ── -->
+  <div class="market-section-label">Send resources by coordinates</div>
+
+  <div id="presets-list"></div>
+  <div class="transport-col-headers">
+    <span>X|Y</span><span>Wood</span><span>Brick</span><span>Ore</span><span>Food</span><span></span><span></span>
+  </div>
+  <div id="transports-list"></div>
+  <div class="transport-controls">
+    <button class="btn-add-offer" id="btn-add-transport">+ Add row</button>
+    <button class="btn-add-offer" id="btn-paste-transports" title="Paste TSV/CSV from clipboard (one row per line: X|Y wood brick ore food)">Paste</button>
+    <button class="btn-add-offer" id="btn-clear-transports">Clear</button>
+  </div>
+  <p class="status" id="transport-status"></p>
+  <button class="btn btn-market" id="btn-send-transports" disabled>Send transports</button>
 </div>
 
 <!-- ── Settings panel ── -->
@@ -290,6 +374,7 @@
   </div>
 </div>
 
+<script src="lib/presets-store.js"></script>
 <script src="popup.js"></script>
 </body>
 </html>
