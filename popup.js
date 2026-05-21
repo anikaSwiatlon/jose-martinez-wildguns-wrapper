@@ -105,30 +105,16 @@ function readTogglesFromUI() {
 
 // ── Load saved settings ──────────────────────────────────────────────────────────────────────────────────
 
-const ASTRA_KEYS = [
-  "astraDbId", "astraRegion", "astraKeyspace", "astraCollection", "astraToken",
-];
-const ASTRA_INPUT_IDS = {
-  astraDbId:       "cfg-astra-db",
-  astraRegion:     "cfg-astra-region",
-  astraKeyspace:   "cfg-astra-keyspace",
-  astraCollection: "cfg-astra-collection",
-  astraToken:      "cfg-astra-token",
-};
-
 chrome.storage.local.get(
-  ["supabaseUrl", "supabaseAnonKey", "marketOffers", "marketRuntime", "lastTab", "featureToggles", ...ASTRA_KEYS],
-  (cfg) => {
-    if (cfg.supabaseUrl)     document.getElementById("cfg-url").value = cfg.supabaseUrl;
-    if (cfg.supabaseAnonKey) document.getElementById("cfg-key").value = cfg.supabaseAnonKey;
-    for (const key of ASTRA_KEYS) {
-      if (cfg[key]) document.getElementById(ASTRA_INPUT_IDS[key]).value = cfg[key];
-    }
-    renderOffersUI(cfg.marketOffers ?? DEFAULT_OFFERS);
-    document.getElementById("cfg-runtime").value = cfg.marketRuntime ?? DEFAULT_RUNTIME;
-    applyToggles(cfg.featureToggles ?? TOGGLE_DEFAULTS);
-    if (cfg.lastTab && tabs[cfg.lastTab] && !tabs[cfg.lastTab].btn.classList.contains("hidden")) {
-      switchTab(cfg.lastTab);
+  ["supabaseUrl", "supabaseAnonKey", "marketOffers", "marketRuntime", "lastTab", "featureToggles"],
+  ({ supabaseUrl, supabaseAnonKey, marketOffers, marketRuntime, lastTab, featureToggles }) => {
+    if (supabaseUrl)     document.getElementById("cfg-url").value = supabaseUrl;
+    if (supabaseAnonKey) document.getElementById("cfg-key").value = supabaseAnonKey;
+    renderOffersUI(marketOffers ?? DEFAULT_OFFERS);
+    document.getElementById("cfg-runtime").value = marketRuntime ?? DEFAULT_RUNTIME;
+    applyToggles(featureToggles ?? TOGGLE_DEFAULTS);
+    if (lastTab && tabs[lastTab] && !tabs[lastTab].btn.classList.contains("hidden")) {
+      switchTab(lastTab);
     }
     checkActiveTab();
   }
@@ -141,11 +127,7 @@ document.getElementById("btn-save").addEventListener("click", async () => {
   const key = document.getElementById("cfg-key").value.trim();
   const featureToggles = readTogglesFromUI();
   if (!url || !key) { setStatus("settings-status", "Fill in URL and anon key.", "error"); return; }
-  const astraValues = {};
-  for (const k of ASTRA_KEYS) {
-    astraValues[k] = document.getElementById(ASTRA_INPUT_IDS[k]).value.trim();
-  }
-  await chrome.storage.local.set({ supabaseUrl: url, supabaseAnonKey: key, featureToggles, ...astraValues });
+  await chrome.storage.local.set({ supabaseUrl: url, supabaseAnonKey: key, featureToggles });
   applyToggles(featureToggles);
   setStatus("settings-status", "Settings saved.", "success");
   setTimeout(() => setStatus("settings-status", ""), 2000);

@@ -5,9 +5,16 @@
 //   SEND_REPORT      — battle-report dual-write orchestrator:
 //                      Supabase row holds metadata + astra_doc_id pointer,
 //                      Astra holds the full dom_html + extracted JSON.
+//
+// The Astra credentials are baked in at release build time (write-only role
+// scoped to one collection). lib/astra-config.js is gitignored and may be
+// absent on dev/PR builds — the importScripts call is wrapped so the worker
+// boots either way; the Save Report button surfaces ASTRA_NOT_CONFIGURED with
+// an actionable message when the config is missing.
 
+try { importScripts("lib/astra-config.js"); } catch (_) { /* config absent */ }
 importScripts("lib/astra-client.js");
-const { astraGet, astraUpsert } = self.astraClient;
+const { astraUpsert } = self.astraClient;
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.type === "SEND_TO_SUPABASE") {
@@ -89,12 +96,15 @@ async function supabaseUpsertReportRow(row) {
 
 // ── SEND_REPORT orchestrator ───────────────────────────────────────────────────────────────
 //
-// Pre-checks both stores for the report_id:
-//   - if both have it → no-op ("Already saved")
-//   - if only one has it → write to the missing side only
-//   - if neither has it → write to Astra first, then Supabase with astra_doc_id
+// The Astra token is write-only, so we can't GET-check whether a doc already
+// exists on the Astra side. Dedup is therefore Supabase-only: if Supabase
+// already has the report_id, we skip both writes ("Already saved"). Astra's
+// PUT is idempotent on the same docId, so re-running a save for a partially-
+// failed previous attempt simply overwrites the doc — which is the behaviour
+// we want.
 //
-// Returns { success: true, astra, supabase } where each side is 'ok' | 'skipped' | error msg.
+// Returns { success, astra, supabase, duplicate? } where astra/supabase is
+// 'ok' | 'skipped' | error message.
 
 async function handleSendReport(captured) {
   if (!captured?.report_id) {
@@ -103,16 +113,10 @@ async function handleSendReport(captured) {
   const reportId = String(captured.report_id);
 
   let supabaseHas = false;
-  let astraHas = false;
   try { supabaseHas = await supabaseReportExists(reportId); }
   catch (e) { return { success: false, error: e.message }; }
-  try { astraHas = (await astraGet(reportId)) !== null; }
-  catch (e) {
-    if (e.code !== "ASTRA_NOT_CONFIGURED") return { success: false, error: e.message };
-    return { success: false, error: e.message };
-  }
 
-  if (supabaseHas && astraHas) {
+  if (supabaseHas) {
     return { success: true, astra: "skipped", supabase: "skipped", duplicate: true };
   }
 
@@ -122,25 +126,21 @@ async function handleSendReport(captured) {
     extracted:  captured.extracted,
     meta:       captured.meta,
   };
-  let astraStatus = "skipped";
-  if (!astraHas) {
-    try {
-      await astraUpsert(reportId, astraDoc);
-      astraStatus = "ok";
-    } catch (e) {
-      return { success: false, astra: e.message, supabase: supabaseHas ? "skipped" : "not_attempted" };
-    }
+  let astraStatus;
+  try {
+    await astraUpsert(reportId, astraDoc);
+    astraStatus = "ok";
+  } catch (e) {
+    return { success: false, astra: e.message, supabase: "not_attempted" };
   }
 
-  let supabaseStatus = "skipped";
-  if (!supabaseHas) {
-    const row = buildSupabaseRow(captured, reportId);
-    try {
-      await supabaseUpsertReportRow(row);
-      supabaseStatus = "ok";
-    } catch (e) {
-      return { success: false, astra: astraStatus, supabase: e.message };
-    }
+  let supabaseStatus;
+  const row = buildSupabaseRow(captured, reportId);
+  try {
+    await supabaseUpsertReportRow(row);
+    supabaseStatus = "ok";
+  } catch (e) {
+    return { success: false, astra: astraStatus, supabase: e.message };
   }
 
   return { success: true, astra: astraStatus, supabase: supabaseStatus };

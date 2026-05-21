@@ -1,55 +1,117 @@
-# Astra DB setup
+# Astra DB setup (maintainer)
 
-The extension stores the full battle-report DOM and parsed JSON in
-**IBM DataStax Astra DB**.
+This is a **maintainer guide**, not user-facing documentation. End users
+never see Astra credentials — they're baked into the release zip at
+build time. This page covers how to provision the database, create a
+write-only token, and wire it into the release workflow.
 
-Supabase keeps only the metadata + a pointer; Astra holds everything else.
-The idea behind a change was so w
+## Why write-only
 
-This guide walks through provisioning the database and feeding the
-credentials into the extension Settings tab.
+The extension is distributed as a public release zip. Anything inside
+the zip — including any embedded API token — is readable by anyone who
+unzips the download. We therefore embed only a token whose role is
+**scoped to writes against the single `battle_reports` collection**.
+The worst case if the token leaks is spam writes to that one
+collection. The token cannot read existing data, cannot touch other
+collections, cannot administer the database.
 
-When db is ready, note two values from the database details page:
+Dedup is handled on the Supabase side (each user's own per-user
+Supabase). Astra's `PUT` is idempotent on the document id, so duplicate
+writes are silently overwritten.
 
-- **Database ID** — the UUID shown under the name (e.g.
-  `00000000-0000-0000-0000-000000000000`).
-- **Region** — e.g. `us-east1`.
+## 1. Provision the database
 
-## 1. Create the collection
+1. Sign in at <https://astra.datastax.com>.
+2. **Create Database** → **Serverless (Non-Vector)**.
+3. Name it (e.g. `wildguns-prod`), set keyspace `wildguns`, pick any
+   cloud + region.
+4. Wait for provisioning (~2 minutes).
+5. From the database overview, note:
+   - **Database ID** (UUID).
+   - **Region** (e.g. `us-east1`).
 
-The Document API stores JSON in **collections** inside a keyspace.
+## 2. Create the collection
 
-1. From the database overview, open **Data Explorer** (or use the
-   **Connect → Document API** quick-start tab).
+1. Open **Data Explorer** for the database.
 2. Select keyspace `wildguns`.
-3. Create a collection named `battle_reports`.
+3. Add collection `battle_reports`.
 
-If you used different names, write them down — you'll paste them into
-the Settings tab.
+(Names don't have to match these — but the GitHub repo variables in
+step 5 must match what you actually used.)
 
-## 2. Generate an Application Token
+## 3. Create a custom write-only role
 
-1. From the database page, open **Connect → Token**.
-2. Choose role **Database Administrator** (lets the extension read +
-   write to the collection).
-3. Click **Generate Token**.
-4. Copy the **Application Token** (starts with `AstraCS:…`). You will
-   not be able to view it again, so store it somewhere safe before
-   leaving the page.
+The Astra "Database Administrator" role grants far more access than we
+want. Create a custom role that only permits document writes against
+the single collection.
 
-##3. Paste credentials into the extension
+1. Astra UI → **Settings** → **Roles** → **Add Custom Role**.
+2. Name: `wildguns-write-only`.
+3. Permissions:
+   - **Data API** — grant `data_modify_drop`, `data_modify_write` on
+     resource `data:<keyspace>/<collection>` (e.g.
+     `data:wildguns/battle_reports`).
+   - Nothing else. No read permissions. No keyspace admin. No DB admin.
+4. Save the role.
 
-Open the extension popup → **Settings** tab. Fill in the new Astra
-section:
+## 4. Generate the application token
 
-| Field             | Value                                 |
-| ----------------- | ------------------------------------- |
-| Database ID       | the UUID from step 2                  |
-| Region            | e.g. `us-east1`                       |
-| Keyspace          | `wildguns` (or whatever you named it) |
-| Collection        | `battle_reports`                      |
-| Application Token | the `AstraCS:…` token from step 4     |
+1. Astra UI → **Connect** → **Tokens** → **Generate Token**.
+2. Choose the role you just created (`wildguns-write-only`).
+3. Copy the `AstraCS:…` token. You will not be able to view it again.
 
-Click **Save settings**. The Reports tab's **Save report** button will
-now dual-write each report: metadata into Supabase, full JSON into
-Astra.
+## 5. Add the token + IDs to the repo
+
+The release workflow reads five inputs through the build-extension
+composite action. They map to GitHub repo settings as follows:
+
+| Astra value     | GitHub setting                          | Type      |
+|-----------------|------------------------------------------|-----------|
+| Application token | `ASTRA_WRITE_TOKEN`                    | **Secret** |
+| Database ID       | `ASTRA_DB_ID`                          | Variable  |
+| Region            | `ASTRA_REGION`                         | Variable  |
+| Keyspace          | `ASTRA_KEYSPACE`                       | Variable  |
+| Collection        | `ASTRA_COLLECTION`                     | Variable  |
+
+To configure:
+
+1. Repo → **Settings** → **Secrets and variables** → **Actions**.
+2. **Secrets** tab → `New repository secret` → name `ASTRA_WRITE_TOKEN`,
+   paste the `AstraCS:…` value.
+3. **Variables** tab → add the four non-secret values
+   (`ASTRA_DB_ID`, `ASTRA_REGION`, `ASTRA_KEYSPACE`, `ASTRA_COLLECTION`).
+
+Only `release.yml` is wired to pass these into the build action.
+`validate.yml` and `dev-build.yml` deliberately do **not** pass the
+secret, so dev/PR builds produce a stub config (`ASTRA_CONFIG = null`)
+and the Save Report button surfaces "Astra is not configured in this
+build" at runtime. This is intentional — we don't want the token in
+artifacts that are downloadable by anyone with a GitHub account.
+
+## 6. Rotate the token
+
+If the public zip is ever flooded with abusive writes:
+
+1. Astra UI → **Settings** → **Tokens** → revoke the leaked token.
+2. Generate a new one with the same `wildguns-write-only` role.
+3. Update the `ASTRA_WRITE_TOKEN` GitHub secret.
+4. Cut a new release — every subsequent download embeds the new token.
+
+Old installations keep working with the old (now-revoked) token until
+the user updates. That's acceptable: the next Save Report click on an
+old install will fail with `Astra PUT 401`; the user updates and
+recovers.
+
+## Local development (no CI)
+
+A contributor who wants Save Report to work locally has two options:
+
+1. **Skip Astra entirely.** Without `lib/astra-config.js`, the
+   background worker boots fine, Supabase writes work as normal, and
+   Save Report returns `Astra: ASTRA_NOT_CONFIGURED` while still
+   completing the Supabase side. This is the easiest setup for
+   contributors not touching the Astra integration.
+2. **Provide local credentials.** Copy `lib/astra-config.example.js`
+   to `lib/astra-config.js` and fill in your own dev Astra DB. The
+   file is gitignored so it can't be committed accidentally. Use a
+   throwaway dev DB — never paste production credentials here.

@@ -1,2 +1,7 @@
 TODOS.md
 node_modules/
+
+# Astra credentials — generated at build time from GitHub Secrets, or created
+# manually by a contributor for local development. See lib/astra-config.example.js
+# for the expected shape.
+lib/astra-config.js

@@ -6,6 +6,31 @@ inputs:
     description: Optional suffix appended to the zip filename before .zip (e.g. "INTERNAL-pr-42-abcdef").
     required: false
     default: ""
+  astra-write-token:
+    description: |
+      DataStax Astra application token, scoped to write-only access on the
+      battle_reports collection. Pass `${{ secrets.ASTRA_WRITE_TOKEN }}` from
+      the release workflow only. Leave empty in PR/dev-build/validate workflows;
+      the build then writes a stub config and the Save Report button surfaces
+      ASTRA_NOT_CONFIGURED at runtime.
+    required: false
+    default: ""
+  astra-db-id:
+    description: Astra DB UUID. Non-secret — supply via `${{ vars.ASTRA_DB_ID }}` or hardcode.
+    required: false
+    default: ""
+  astra-region:
+    description: Astra DB region (e.g. "us-east1"). Non-secret.
+    required: false
+    default: ""
+  astra-keyspace:
+    description: Astra keyspace name. Defaults to "wildguns".
+    required: false
+    default: "wildguns"
+  astra-collection:
+    description: Astra collection name. Defaults to "battle_reports".
+    required: false
+    default: "battle_reports"
 
 outputs:
   version:
@@ -33,6 +58,49 @@ runs:
     - name: Run tests
       shell: bash
       run: npm test
+
+    - name: Generate Astra config (lib/astra-config.js)
+      shell: bash
+      env:
+        ASTRA_TOKEN:      ${{ inputs.astra-write-token }}
+        ASTRA_DB_ID:      ${{ inputs.astra-db-id }}
+        ASTRA_REGION:     ${{ inputs.astra-region }}
+        ASTRA_KEYSPACE:   ${{ inputs.astra-keyspace }}
+        ASTRA_COLLECTION: ${{ inputs.astra-collection }}
+      run: |
+        node - << 'NODE_EOF'
+        const fs = require("fs");
+        const token = process.env.ASTRA_TOKEN || "";
+        const out = "lib/astra-config.js";
+        if (!token) {
+          fs.writeFileSync(out,
+            "// Stub config generated at build time. No ASTRA_WRITE_TOKEN was\n" +
+            "// supplied (PR / dev / validate build). The Save Report button will\n" +
+            "// surface ASTRA_NOT_CONFIGURED at runtime, which is intentional.\n" +
+            "self.ASTRA_CONFIG = null;\n");
+          console.log("Wrote stub config (no token supplied).");
+          process.exit(0);
+        }
+        for (const k of ["ASTRA_DB_ID", "ASTRA_REGION", "ASTRA_KEYSPACE", "ASTRA_COLLECTION"]) {
+          if (!process.env[k]) {
+            console.error(`ERROR: ${k} input is empty but ASTRA_TOKEN is set. Either supply all five Astra inputs or none.`);
+            process.exit(1);
+          }
+        }
+        const cfg = {
+          dbId:       process.env.ASTRA_DB_ID,
+          region:     process.env.ASTRA_REGION,
+          keyspace:   process.env.ASTRA_KEYSPACE,
+          collection: process.env.ASTRA_COLLECTION,
+          token,
+        };
+        fs.writeFileSync(out,
+          "// Generated at build time from GitHub Secrets / repo variables.\n" +
+          "// Do not edit manually; do not commit (gitignored).\n" +
+          "self.ASTRA_CONFIG = " + JSON.stringify(cfg, null, 2) + ";\n");
+        console.log("Wrote real Astra config (token redacted from logs).");
+        NODE_EOF
+        node --check lib/astra-config.js
 
     - name: Install web-ext
       shell: bash

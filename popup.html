@@ -280,28 +280,6 @@
     <input id="cfg-key" type="password" placeholder="eyJ..." />
   </div>
 
-  <div class="setting-section-label">Astra DB &mdash; full report storage</div>
-  <div class="field">
-    <label>Database ID</label>
-    <input id="cfg-astra-db" type="text" placeholder="00000000-0000-0000-0000-000000000000" />
-  </div>
-  <div class="field">
-    <label>Region</label>
-    <input id="cfg-astra-region" type="text" placeholder="us-east1" />
-  </div>
-  <div class="field">
-    <label>Keyspace</label>
-    <input id="cfg-astra-keyspace" type="text" placeholder="wildguns" />
-  </div>
-  <div class="field">
-    <label>Collection</label>
-    <input id="cfg-astra-collection" type="text" placeholder="battle_reports" />
-  </div>
-  <div class="field">
-    <label>Application Token</label>
-    <input id="cfg-astra-token" type="password" placeholder="AstraCS:..." />
-  </div>
-
   <div class="field">
     <label>Visible tabs</label>
     <div class="toggle-group">
@@ -315,7 +293,8 @@
   <div class="setting-note">
     Supabase credentials: Dashboard &rarr; Settings &rarr; API.<br>
     The anon key is safe here &mdash; RLS locks the table to INSERT only.<br>
-    Astra setup: see <code>docs/astra-setup.md</code>.
+    Astra DB credentials are baked into release builds and do not need to be
+    entered here. Dev/PR builds skip Astra writes with a clear status.
   </div>
 </div>
 
