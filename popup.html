@@ -186,6 +186,12 @@
       background: #fff; border: 1px solid #e5e4e0; border-radius: 6px;
       padding: 8px 10px;
     }
+    .setting-section-label {
+      font-size: 10px; font-weight: 600; color: #888;
+      text-transform: uppercase; letter-spacing: .06em;
+      margin-top: 4px; padding-top: 4px;
+      border-top: 1px solid #e5e4e0;
+    }
     .setting-warning {
       font-size: 11px; color: #7a3a00; line-height: 1.5;
       background: #fff8e6; border: 1px solid #f0c14b; border-radius: 6px;
@@ -233,12 +239,11 @@
 
 <!-- ── Reports panel ── -->
 <div class="panel" id="panel-reports">
-  <div class="preview-card" id="wg-preview"></div>
-  <p class="status" id="wg-status">Open a battle report, then click Read.</p>
-  <button class="btn btn-reports" id="wg-btn-read">Read battle report</button>
-  <div class="btn-row">
-    <button class="btn btn-dl"   id="wg-btn-dl"   disabled>Download JSON</button>
-    <button class="btn btn-send" id="wg-btn-send" disabled>Send to Supabase</button>
+  <p class="status" id="wg-status">Open a battle report, then click Save.</p>
+  <button class="btn btn-reports" id="wg-btn-save">&#128190; Save report</button>
+  <div class="setting-note">
+    Captures the full report DOM + structured fields. Supabase stores the
+    metadata; Astra DB stores the full document.
   </div>
 </div>
 
@@ -274,6 +279,7 @@
     <label>Anon / public key</label>
     <input id="cfg-key" type="password" placeholder="eyJ..." />
   </div>
+
   <div class="field">
     <label>Visible tabs</label>
     <div class="toggle-group">
@@ -286,7 +292,9 @@
   <p class="status" id="settings-status"></p>
   <div class="setting-note">
     Supabase credentials: Dashboard &rarr; Settings &rarr; API.<br>
-    The anon key is safe here &mdash; RLS locks the table to INSERT only.
+    The anon key is safe here &mdash; RLS locks the table to INSERT only.<br>
+    Astra DB credentials are baked into release builds and do not need to be
+    entered here. Dev/PR builds skip Astra writes with a clear status.
   </div>
 </div>
 

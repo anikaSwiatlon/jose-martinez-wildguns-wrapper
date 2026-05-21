@@ -202,101 +202,74 @@ wuBtnSend.addEventListener("click", () => {
 });
 
 // ── Reports tab ──────────────────────────────────────────────────────────────────────────────────
+//
+// Single-button "Save report" flow:
+//   1. Inject content script into the active tab.
+//   2. Send CAPTURE_REPORT → receive { report_id, dom_html, extracted, meta }.
+//   3. Send SEND_REPORT to the service worker → background does dedup + dual-write.
+//   4. Surface a per-store status: ok / skipped / error.
 
-const wgPreview = document.getElementById("wg-preview");
-const wgBtnRead = document.getElementById("wg-btn-read");
-const wgBtnDl   = document.getElementById("wg-btn-dl");
-const wgBtnSend = document.getElementById("wg-btn-send");
-let wgPayload   = null;
+const wgBtnSave = document.getElementById("wg-btn-save");
 
-function renderSide(label, cssClass, data) {
-  if (!data) return "";
-  const unitRows = (data.units || []).map(u =>
-    `<div class="unit-row">
-      <span>${u.unit}${u.is_group ? ` <span class="group-badge">&#9733;${u.group_level ?? ""}</span>` : ""}</span>
-      <span class="count">${u.count} <span class="losses">-${u.losses}</span></span>
-    </div>`
-  ).join("") || `<div class="unit-row" style="color:#bbb;font-style:italic;">no units</div>`;
-  return `
-    <div class="side-block">
-      <div class="side-label ${cssClass}">${label}</div>
-      <div class="side-player"><span>${data.player ?? "?"}</span><span style="font-weight:400;color:#888;">${data.city ?? "?"}</span></div>
-      ${unitRows}
-    </div>`;
+function formatReportStatus(response) {
+  if (response.duplicate) return "Already saved — skipped.";
+  const parts = [];
+  if (response.astra)    parts.push(`Astra: ${response.astra}`);
+  if (response.supabase) parts.push(`Supabase: ${response.supabase}`);
+  return parts.join(" · ") || "Saved.";
 }
 
-function renderSpyPreview(spy) {
-  if (!spy) return "";
-  const res = spy.raw_materials;
-  const resLine = Object.entries(res).map(([k, v]) => `${k}: ${v}`).join(", ");
-  const bldgCount = spy.buildings.length;
-  const unitCount = spy.units.length + spy.groups.length;
-  return `
-    <div class="side-block">
-      <div class="side-label" style="color:#854F0B;">Spy report</div>
-      ${resLine ? `<div class="unit-row"><span>Resources</span><span class="count">${resLine}</span></div>` : ""}
-      ${unitCount > 0 ? `<div class="unit-row"><span>Units/Groups</span><span class="count">${unitCount} type(s)</span></div>` : ""}
-      ${bldgCount > 0 ? `<div class="unit-row"><span>Buildings</span><span class="count">${bldgCount} scanned</span></div>` : ""}
-    </div>`;
-}
-
-function renderReportsPreview(d) {
-  wgPreview.innerHTML = `
-    <div class="report-title">${d.title ?? "Battle report"}</div>
-    <div class="report-meta">
-      <span>${d.date ?? ""}</span>
-      ${d.luck    ? `<span>Luck: ${d.luck}</span>`       : ""}
-      ${d.loyalty ? `<span>Loyalty: ${d.loyalty}</span>` : ""}
-    </div>
-    ${renderSide("Attacker", "atk", d.attacker)}
-    ${renderSide("Defender", "def", d.defender)}
-    ${renderSpyPreview(d.spy_report)}`;
-  wgPreview.classList.add("visible");
-}
-
-wgBtnRead.addEventListener("click", async () => {
+wgBtnSave.addEventListener("click", async () => {
   setDot("loading");
   setStatus("wg-status", "Reading report…");
-  wgBtnRead.disabled = true;
-  wgBtnDl.disabled   = true;
-  wgBtnSend.disabled = true;
-  wgPreview.classList.remove("visible");
-  wgPayload = null;
+  wgBtnSave.disabled = true;
 
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  try { await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["features/battle-reports/content.js"] }); } catch {}
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    try { await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["features/battle-reports/content.js"] }); } catch {}
 
-  chrome.tabs.sendMessage(tab.id, { type: "SCRAPE_WILDGUNS" }, (response) => {
-    wgBtnRead.disabled = false;
-    if (chrome.runtime.lastError || !response) {
-      setStatus("wg-status", "No response. Open a WildGuns battle report first.", "error");
-      setDot("error"); return;
+    const captured = await new Promise(resolve => {
+      chrome.tabs.sendMessage(tab.id, { type: "CAPTURE_REPORT" }, response => {
+        if (chrome.runtime.lastError || !response) {
+          resolve({ success: false, error: "No response. Open a WildGuns battle report first." });
+          return;
+        }
+        resolve(response);
+      });
+    });
+    if (!captured.success) {
+      setStatus("wg-status", captured.error ?? "Failed to read report.", "error");
+      setDot("error");
+      return;
     }
-    if (!response.success) {
-      setStatus("wg-status", response.error ?? "Failed to parse report.", "error");
-      setDot("error"); return;
+    if (!captured.data.report_id) {
+      setStatus("wg-status", "Report has no report_id in URL — open it from the mail list.", "error");
+      setDot("error");
+      return;
     }
-    wgPayload = response.data;
-    renderReportsPreview(response.data);
-    const atk = response.data.attacker?.units?.length ?? 0;
-    const def = response.data.defender?.units?.length ?? 0;
-    setStatus("wg-status", `${atk} attacker unit type(s), ${def} defender unit type(s).`, "success");
+
+    setStatus("wg-status", "Saving…");
+    const result = await new Promise(resolve => {
+      chrome.runtime.sendMessage({ type: "SEND_REPORT", captured: captured.data }, response => {
+        resolve(response ?? { success: false, error: "No response from background." });
+      });
+    });
+
+    if (!result.success) {
+      const parts = [];
+      if (result.astra)    parts.push(`Astra: ${result.astra}`);
+      if (result.supabase) parts.push(`Supabase: ${result.supabase}`);
+      const detail = parts.length ? ` (${parts.join(" · ")})` : "";
+      setStatus("wg-status", `${result.error ?? "Save failed."}${detail}`, "error");
+      setDot("error");
+      return;
+    }
+
+    setStatus("wg-status", formatReportStatus(result), "success");
     setDot("ready");
-    wgBtnDl.disabled   = false;
-    wgBtnSend.disabled = false;
-  });
-});
-
-wgBtnDl.addEventListener("click", () => {
-  if (!wgPayload) return;
-  downloadJSON(wgPayload, "wildguns-report");
-  setStatus("wg-status", "JSON downloaded.", "success");
-  setTimeout(() => setStatus("wg-status", "Report ready.", "success"), 1500);
-});
-
-wgBtnSend.addEventListener("click", () => {
-  if (!wgPayload) return;
-  sendToSupabase("battle_reports", wgPayload, "wg-status", wgBtnSend, wgBtnRead);
+  } finally {
+    wgBtnSave.disabled = false;
+  }
 });
 
 // ── Market tab ───────────────────────────────────────────────────────────────────────────────────

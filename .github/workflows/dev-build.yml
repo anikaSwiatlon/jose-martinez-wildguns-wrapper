@@ -23,7 +23,12 @@ jobs:
         id: build
         uses: ./.github/actions/build-extension
         with:
-          zip-suffix: ${{ steps.suffix.outputs.suffix }}
+          zip-suffix:        ${{ steps.suffix.outputs.suffix }}
+          astra-write-token: ${{ secrets.ASTRA_WRITE_TOKEN }}
+          astra-db-id:       ${{ vars.ASTRA_DB_ID }}
+          astra-region:      ${{ vars.ASTRA_REGION }}
+          astra-keyspace:    ${{ vars.ASTRA_KEYSPACE }}
+          astra-collection:  ${{ vars.ASTRA_COLLECTION }}
 
       - name: Upload dev-build artifact
         uses: actions/upload-artifact@v7
@@ -44,6 +49,9 @@ jobs:
           | Commit   | \`${{ github.event.pull_request.head.sha }}\` |
           | Artifact | \`${{ steps.build.outputs.zip-name }}\` |
 
-          This zip is an internal QA build for maintainers only. Do not distribute
-          to end users — they should always install from the latest GitHub Release.
+          This zip is an internal QA build for maintainers only. It embeds the
+          production Astra write-only token so that maintainers can verify the
+          Save Report flow end-to-end against the real database. Do not
+          distribute to end users — they should always install from the latest
+          GitHub Release.
           EOF

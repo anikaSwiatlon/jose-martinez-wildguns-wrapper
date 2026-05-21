@@ -13,7 +13,8 @@
   "host_permissions": [
     "https://*.wildungs.com/*",
     "https://*.wildguns.gameforge.com/*",
-    "https://*.supabase.co/*"
+    "https://*.supabase.co/*",
+    "https://*.apps.astra.datastax.com/*"
   ],
 
   "action": {
