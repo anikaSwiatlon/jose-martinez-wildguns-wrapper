@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{title}} — Jose Martinez WildGuns Helper</title>
+  <meta name="description" content="A casual little WildGuns helper extension by Jose Martinez. Save reports, send transports, keep the saloon tidy." />
+  <link rel="stylesheet" href="assets/style.css" />
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="index.html">
+      <span class="brand-mark">★</span>
+      <span class="brand-text">Jose Martinez<br><small>WildGuns Helper</small></span>
+    </a>
+    <nav class="site-nav">
+      <a href="index.html" data-key="index">Home</a>
+      <a href="patchnotes.html" data-key="patchnotes">Patchnotes</a>
+      <a href="legal.html" data-key="legal">License &amp; Privacy</a>
+      <a href="contact.html" data-key="contact">Contact</a>
+    </nav>
+  </header>
+
+  <main class="site-main">
+    {{content}}
+  </main>
+
+  <footer class="site-footer">
+    <p>Built with sweat and tequila. Released under the <a href="legal.html">MIT license</a>.</p>
+    <p class="footer-meta">Source: <a href="https://github.com/{{owner}}/{{repo}}">github.com/{{owner}}/{{repo}}</a></p>
+  </footer>
+
+  <script>
+    // Highlight the active nav item.
+    (function () {
+      var here = location.pathname.split("/").pop().replace(".html", "") || "index";
+      document.querySelectorAll(".site-nav a").forEach(function (a) {
+        if (a.dataset.key === here) a.classList.add("active");
+      });
+    })();
+  </script>
+</body>
+</html>

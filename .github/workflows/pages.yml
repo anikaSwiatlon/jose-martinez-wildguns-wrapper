@@ -1,0 +1,65 @@
+name: Deploy Pages
+
+# Builds and deploys the GitHub Pages site under docs/site/. Path-filtered
+# so it only runs when the source materials actually change. The companion
+# validate.yml already excludes these paths so doc-only commits don't kick
+# off the extension validation pipeline.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/site/**"
+      - "scripts/build-pages.mjs"
+      - "CHANGELOG.md"
+      - "LICENSE"
+      - "PRIVACY.md"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build site
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Build static site
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/build-pages.mjs
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v5
