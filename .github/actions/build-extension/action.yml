@@ -9,28 +9,29 @@ inputs:
   astra-write-token:
     description: |
       DataStax Astra application token, scoped to write-only access on the
-      battle_reports collection. Pass `${{ secrets.ASTRA_WRITE_TOKEN }}` from
-      the release workflow only. Leave empty in PR/dev-build/validate workflows;
-      the build then writes a stub config and the Save Report button surfaces
+      target collection. Pass `${{ secrets.ASTRA_WRITE_TOKEN }}` from every
+      workflow that calls this action (release.yml, dev-build.yml, validate.yml).
+      If the calling workflow runs without access to the secret (e.g. PRs from
+      a fork), the build writes a stub config and Save Report surfaces
       ASTRA_NOT_CONFIGURED at runtime.
     required: false
     default: ""
   astra-db-id:
-    description: Astra DB UUID. Non-secret — supply via `${{ vars.ASTRA_DB_ID }}` or hardcode.
+    description: Astra DB UUID. Supply via `${{ vars.ASTRA_DB_ID }}`.
     required: false
     default: ""
   astra-region:
-    description: Astra DB region (e.g. "us-east1"). Non-secret.
+    description: Astra DB region (e.g. "us-east1"). Supply via `${{ vars.ASTRA_REGION }}`.
     required: false
     default: ""
   astra-keyspace:
-    description: Astra keyspace name. Defaults to "wildguns".
+    description: Astra keyspace name. Supply via `${{ vars.ASTRA_KEYSPACE }}`.
     required: false
-    default: "wildguns"
+    default: ""
   astra-collection:
-    description: Astra collection name. Defaults to "battle_reports".
+    description: Astra collection name. Supply via `${{ vars.ASTRA_COLLECTION }}`.
     required: false
-    default: "battle_reports"
+    default: ""
 
 outputs:
   version:

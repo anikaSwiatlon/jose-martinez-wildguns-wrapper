@@ -22,6 +22,12 @@ jobs:
 
       - name: Build extension (validation only)
         uses: ./.github/actions/build-extension
+        with:
+          astra-write-token: ${{ secrets.ASTRA_WRITE_TOKEN }}
+          astra-db-id:       ${{ vars.ASTRA_DB_ID }}
+          astra-region:      ${{ vars.ASTRA_REGION }}
+          astra-keyspace:    ${{ vars.ASTRA_KEYSPACE }}
+          astra-collection:  ${{ vars.ASTRA_COLLECTION }}
 
       - name: Write job summary
         run: |

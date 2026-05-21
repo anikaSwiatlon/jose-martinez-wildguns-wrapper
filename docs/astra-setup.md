@@ -81,12 +81,19 @@ To configure:
 3. **Variables** tab → add the four non-secret values
    (`ASTRA_DB_ID`, `ASTRA_REGION`, `ASTRA_KEYSPACE`, `ASTRA_COLLECTION`).
 
-Only `release.yml` is wired to pass these into the build action.
-`validate.yml` and `dev-build.yml` deliberately do **not** pass the
-secret, so dev/PR builds produce a stub config (`ASTRA_CONFIG = null`)
-and the Save Report button surfaces "Astra is not configured in this
-build" at runtime. This is intentional — we don't want the token in
-artifacts that are downloadable by anyone with a GitHub account.
+All three workflows that call the build-extension action
+(`release.yml`, `dev-build.yml`, `validate.yml`) pass the same secret +
+variables. Reasoning: the token is already write-only and limited to one
+collection, the same blast radius applies whether it sits in a release
+zip or a dev-build artifact, and dev artifacts that match the production
+config let maintainers verify the Save Report flow end-to-end before
+publishing a release.
+
+The only case where the build falls back to the stub config
+(`ASTRA_CONFIG = null`) is when the secret is not available to the
+workflow run at all — for example a PR opened from a public fork, where
+GitHub strips `secrets.*` for security. In that case the build still
+completes; Save Report just surfaces `ASTRA_NOT_CONFIGURED` at runtime.
 
 ## 6. Rotate the token
 
